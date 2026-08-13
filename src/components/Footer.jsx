@@ -18,7 +18,7 @@ export default function Footer({ setActivePage, onCategorySelect }) {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
           {/* Column 1: Brand Info */}
           <div className="space-y-4">
-            <div className="bg-white p-2.5 rounded-xl inline-block shadow-md border border-[#D4AF37]/30">
+            <div className="inline-block">
               <img src="/logo.png" alt="Sri Vastralaya" className="h-24 sm:h-28 w-auto object-contain" />
             </div>
             <p className="text-gray-300 text-xs sm:text-sm leading-relaxed">

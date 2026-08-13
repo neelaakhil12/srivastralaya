@@ -20,10 +20,12 @@ import CategoriesPage from './pages/CategoriesPage';
 import ProductsPage from './pages/ProductsPage';
 import OurStoryPage from './pages/OurStoryPage';
 import ContactPage from './pages/ContactPage';
+import SplashScreen from './components/SplashScreen';
 
 function AppContent() {
   const [activePage, setActivePage] = useState('home');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
     AOS.init({
@@ -44,6 +46,9 @@ function AppContent() {
 
   return (
     <div className="min-h-screen flex flex-col bg-white font-sans antialiased text-gray-900 selection:bg-[#701A23] selection:text-white">
+      {/* Splash Screen Animation */}
+      {showSplash && <SplashScreen onComplete={() => setShowSplash(false)} />}
+
       {/* Toast Feedback */}
       <Toast />
 
