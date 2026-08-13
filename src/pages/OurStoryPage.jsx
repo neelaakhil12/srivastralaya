@@ -23,7 +23,7 @@ export default function OurStoryPage({ setActivePage }) {
         <div className="lg:col-span-6 relative">
           <div className="relative aspect-[4/5] sm:aspect-4/3 rounded-3xl overflow-hidden shadow-2xl border-4 border-white bg-[#FAF8F5]">
             <img
-              src="https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=1000&q=80"
+              src="/products/generic-product.png"
               alt="Sri Vastralaya Heritage"
               className="w-full h-full object-contain p-2"
             />

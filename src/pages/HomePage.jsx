@@ -30,13 +30,13 @@ export default function HomePage({ setActivePage, onCategorySelect }) {
   const trendingProducts = [...products].sort((a, b) => b.reviewsCount - a.reviewsCount).slice(0, 4);
 
   const instagramPosts = [
-    { id: 1, image: "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=400&q=80" },
-    { id: 2, image: "https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?auto=format&fit=crop&w=400&q=80" },
-    { id: 3, image: "https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?auto=format&fit=crop&w=400&q=80" },
-    { id: 4, image: "https://images.unsplash.com/photo-1590564310418-66304f55a2c2?auto=format&fit=crop&w=400&q=80" },
-    { id: 5, image: "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&w=400&q=80" },
-    { id: 5, image: "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&w=400&q=80" },
-    { id: 6, image: "https://images.unsplash.com/photo-1609357605129-26f69add5d6e?auto=format&fit=crop&w=400&q=80" }
+    { id: 1, image: "/products/generic-product.png" },
+    { id: 2, image: "/products/generic-product.png" },
+    { id: 3, image: "/products/generic-product.png" },
+    { id: 4, image: "/products/generic-product.png" },
+    { id: 5, image: "/products/generic-product.png" },
+    { id: 5, image: "/products/generic-product.png" },
+    { id: 6, image: "/products/generic-product.png" }
   ];
 
   const customerReviews = [
