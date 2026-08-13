@@ -1,0 +1,97 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --color-maroon-primary: #701A23;
+    --color-maroon-dark: #521117;
+    --color-maroon-hover: #891E2A;
+    --color-maroon-light: #FAF0F1;
+    --color-gold-accent: #D4AF37;
+    --color-gold-light: #F9F3DF;
+  }
+
+  html, body {
+    scroll-behavior: smooth;
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    overflow-x: clip;
+    max-width: 100vw;
+  }
+
+  body {
+    background-color: #ffffff;
+    color: #1a1a1a;
+    margin: 0;
+    padding: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, h4, .font-serif-brand {
+    font-family: 'Cormorant Garamond', Georgia, serif;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #f8f8f8;
+}
+::-webkit-scrollbar-thumb {
+  background: #701A23;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #521117;
+}
+
+/* Custom utility classes */
+.bg-maroon-primary {
+  background-color: #701A23;
+}
+.bg-maroon-dark {
+  background-color: #521117;
+}
+.bg-maroon-hover:hover {
+  background-color: #891E2A;
+}
+.bg-maroon-light {
+  background-color: #FAF0F1;
+}
+.text-maroon-primary {
+  color: #701A23;
+}
+.text-maroon-dark {
+  color: #521117;
+}
+.border-maroon-primary {
+  border-color: #701A23;
+}
+.border-gold-accent {
+  border-color: #D4AF37;
+}
+.text-gold-accent {
+  color: #D4AF37;
+}
+.bg-gold-accent {
+  background-color: #D4AF37;
+}
+
+/* Animations */
+@keyframes pulse-subtle {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 3s infinite ease-in-out;
+}
+
+@keyframes float-badge {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-6px); }
+}
+
+.animate-float {
+  animation: float-badge 4s infinite ease-in-out;
+}
