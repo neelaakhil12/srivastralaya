@@ -18,8 +18,8 @@ export default function Footer({ setActivePage, onCategorySelect }) {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
           {/* Column 1: Brand Info */}
           <div className="space-y-4">
-            <div className="inline-block">
-              <img src="/logo.png" alt="Sri Vastralaya" className="h-24 sm:h-28 w-auto object-contain" />
+            <div className="inline-block bg-white px-5 py-2 sm:px-6 sm:py-3 rounded-full shadow-sm">
+              <img src="/logo.png" alt="Sri Vastralaya" className="h-20 sm:h-24 w-auto object-contain" />
             </div>
             <p className="text-gray-300 text-xs sm:text-sm leading-relaxed">
               Bringing you timeless sarees, jewellery, and fashion accessories crafted with love, tradition, and affordability. Owned with pride by <span className="text-[#D4AF37] font-semibold">Praveen & Siri</span>.

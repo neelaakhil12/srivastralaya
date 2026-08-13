@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, ShoppingBag, Heart, Menu, X, Phone, MapPin, ChevronRight, MessageCircle } from 'lucide-react';
+import { Search, ShoppingBag, Heart, Menu, X, Phone, MapPin, ChevronRight, MessageCircle, User } from 'lucide-react';
 import { InstagramIcon } from './BrandIcons';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
@@ -12,15 +12,30 @@ export default function Navbar({ activePage, setActivePage, onCategorySelect }) 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navLinks = [
-    { id: 'home', label: 'HOME' },
-    { id: 'categories', label: 'CATEGORIES' },
-    { id: 'products', label: 'PRODUCTS' },
-    { id: 'our-story', label: 'OUR STORY' },
-    { id: 'contact', label: 'CONTACT' },
+    { id: 'home', type: 'page', label: 'HOME' },
+    { id: 'products', type: 'page', label: 'SHOP' },
+    { id: 'sarees', type: 'category', label: 'SAREES' },
+    { id: 'jewellery', type: 'category', label: 'JEWELLERY' },
+    { id: 'hair-accessories', type: 'category', label: 'HAIR ACCESSORIES' },
+    { id: 'dresses', type: 'category', label: 'DRESSES' },
+    { id: 'shirts', type: 'category', label: 'SHIRTS' },
+    { id: 't-shirts', type: 'category', label: 'T-SHIRTS' },
+    { id: 'photoframes', type: 'category', label: 'PHOTO FRAMES' },
+    { id: 'fancy-items', type: 'category', label: 'FANCY ITEMS' },
+    { id: 'our-story', type: 'page', label: 'OUR STORY' },
+    { id: 'contact', type: 'page', label: 'CONTACT' },
   ];
 
-  const handleNavClick = (pageId) => {
-    setActivePage(pageId);
+  const handleNavClick = (link) => {
+    if (link.type === 'category') {
+      if (onCategorySelect) onCategorySelect(link.id);
+      setActivePage('products');
+    } else {
+      setActivePage(link.id);
+      if (link.id === 'products' && onCategorySelect) {
+        onCategorySelect('all');
+      }
+    }
     setMobileMenuOpen(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -70,13 +85,13 @@ export default function Navbar({ activePage, setActivePage, onCategorySelect }) 
           </div>
 
           {/* Desktop Navigation Links directly in header */}
-          <nav className="hidden lg:flex items-center gap-6 xl:gap-8 text-sm font-semibold tracking-wider">
+          <nav className="hidden lg:flex flex-wrap justify-center items-center gap-x-3 xl:gap-x-5 gap-y-1 text-[10px] xl:text-[11px] font-bold tracking-wider max-w-[60%] xl:max-w-[65%]">
             {navLinks.map((link) => {
               const isActive = activePage === link.id;
               return (
                 <button
                   key={link.id}
-                  onClick={() => handleNavClick(link.id)}
+                  onClick={() => handleNavClick(link)}
                   className={`relative py-1.5 transition-colors duration-200 ${
                     isActive 
                       ? 'text-[#701A23] font-bold' 
@@ -106,7 +121,7 @@ export default function Navbar({ activePage, setActivePage, onCategorySelect }) 
             {/* Wishlist */}
             <button
               onClick={() => setIsWishlistOpen(true)}
-              className="p-2 text-gray-700 hover:text-[#701A23] hover:bg-gray-100 rounded-full transition-colors relative"
+              className="hidden sm:block p-2 text-gray-700 hover:text-[#701A23] hover:bg-gray-100 rounded-full transition-colors relative"
               title="Wishlist"
             >
               <Heart className="w-5 h-5" />
@@ -115,6 +130,17 @@ export default function Navbar({ activePage, setActivePage, onCategorySelect }) 
                   {wishlistCount}
                 </span>
               )}
+            </button>
+
+            {/* User / Sign In */}
+            <button
+              onClick={() => {
+                alert("Sign in functionality coming soon!");
+              }}
+              className="p-2 text-gray-700 hover:text-[#701A23] hover:bg-gray-100 rounded-full transition-colors"
+              title="Sign In"
+            >
+              <User className="w-5 h-5" />
             </button>
 
             {/* Cart Button with badge & total */}
@@ -175,7 +201,7 @@ export default function Navbar({ activePage, setActivePage, onCategorySelect }) 
               {navLinks.map((link) => (
                 <button
                   key={link.id}
-                  onClick={() => handleNavClick(link.id)}
+                  onClick={() => handleNavClick(link)}
                   className={`w-full flex items-center justify-between px-4 py-3 rounded-lg text-left text-sm font-semibold transition-colors ${
                     activePage === link.id
                       ? 'bg-[#FAF0F1] text-[#701A23]'
@@ -187,7 +213,27 @@ export default function Navbar({ activePage, setActivePage, onCategorySelect }) 
                 </button>
               ))}
 
-              <div className="pt-6 border-t border-gray-100 mt-6 px-4 space-y-3 text-xs text-gray-600">
+              <div className="pt-2 border-t border-gray-100 mt-2">
+                <button
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    setIsWishlistOpen(true);
+                  }}
+                  className="w-full flex items-center justify-between px-4 py-3 rounded-lg text-left text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <Heart className="w-5 h-5 text-[#701A23]" />
+                    <span>My Wishlist</span>
+                  </div>
+                  {wishlistCount > 0 && (
+                    <span className="bg-[#701A23] text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                      {wishlistCount} items
+                    </span>
+                  )}
+                </button>
+              </div>
+
+              <div className="pt-4 border-t border-gray-100 mt-4 px-4 space-y-3 text-xs text-gray-600">
                 <p className="font-bold uppercase tracking-wider text-[#701A23]">Contact Us</p>
                 <a href="tel:9618093699" className="flex items-center gap-2 hover:text-[#701A23]">
                   <Phone className="w-4 h-4 text-[#701A23]" />
