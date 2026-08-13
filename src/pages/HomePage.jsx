@@ -202,7 +202,7 @@ export default function HomePage({ setActivePage, onCategorySelect }) {
           Bringing You Elegance, Quality & Honest Pricing
         </h2>
         <p className="text-gray-600 text-sm sm:text-base leading-relaxed">
-          Founded by <strong className="text-gray-900">Praveen & Siri</strong>, Sri Vastralaya was built on a simple belief: <em>everyone deserves to wear beautiful, high-quality fashion without paying high prices.</em> From handcrafted sarees and sparkling jewellery to trendy hair accessories and lifestyle items, we curate every piece with care.
+          Founded by <strong className="text-gray-900">Pranu & Siri</strong>, Sri Vastralaya was built on a simple belief: <em>everyone deserves to wear beautiful, high-quality fashion without paying high prices.</em> From handcrafted sarees and sparkling jewellery to trendy hair accessories and lifestyle items, we curate every piece with care.
         </p>
       </section>
 

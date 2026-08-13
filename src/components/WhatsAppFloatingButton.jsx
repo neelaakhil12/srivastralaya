@@ -39,7 +39,7 @@ export default function WhatsAppFloatingButton() {
             <div className="bg-white p-3 rounded-lg rounded-tl-none shadow-xs text-xs text-gray-800 space-y-1">
               <p className="font-bold text-[#075E54]">Sri Vastralaya Care</p>
               <p>Hello! 👋 How can we assist you with our Sarees, Jewellery, or Fashion collections today?</p>
-              <span className="text-[10px] text-gray-400 block text-right">Praveen & Siri</span>
+              <span className="text-[10px] text-gray-400 block text-right">Pranu & Siri</span>
             </div>
 
             <div className="space-y-2 pt-1">

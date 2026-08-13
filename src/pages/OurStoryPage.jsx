@@ -34,7 +34,7 @@ export default function OurStoryPage({ setActivePage }) {
               SV
             </div>
             <div>
-              <h5 className="font-serif font-bold text-sm text-gray-900">Praveen & Siri</h5>
+              <h5 className="font-serif font-bold text-sm text-gray-900">Pranu & Siri</h5>
               <p className="text-xs text-[#701A23] font-semibold">Founders & Owners</p>
             </div>
           </div>
@@ -46,7 +46,7 @@ export default function OurStoryPage({ setActivePage }) {
             Style & Quality Created With Passion
           </h2>
           <p className="text-gray-600 text-sm sm:text-base leading-relaxed">
-            Sri Vastralaya is a dedicated fashion and lifestyle brand owned by <strong className="text-gray-900">Praveen & Siri</strong>. Our journey began with a passion for traditional weaves, vibrant ethnic attire, fine jewellery, and elegant fashion accessories.
+            Sri Vastralaya is a dedicated fashion and lifestyle brand owned by <strong className="text-gray-900">Pranu & Siri</strong>. Our journey began with a passion for traditional weaves, vibrant ethnic attire, fine jewellery, and elegant fashion accessories.
           </p>
           <p className="text-gray-600 text-sm sm:text-base leading-relaxed">
             We recognized that many customers struggle to find authentic sarees and stylish accessories that balance high quality with reasonable, affordable prices. Sri Vastralaya was founded to bridge this exact gap — bringing premium fashion directly from tradition to you.
@@ -126,7 +126,7 @@ export default function OurStoryPage({ setActivePage }) {
         <div className="max-w-2xl mx-auto space-y-3">
           <h3 className="font-serif text-3xl font-bold">Experience the Sri Vastralaya Distinction</h3>
           <p className="text-gray-200 text-xs sm:text-sm">
-            Have questions about saree weaves or jewellery sets? Talk directly to Praveen & Siri on WhatsApp!
+            Have questions about saree weaves or jewellery sets? Talk directly to Pranu & Siri on WhatsApp!
           </p>
           <button
             onClick={() => setActivePage('contact')}

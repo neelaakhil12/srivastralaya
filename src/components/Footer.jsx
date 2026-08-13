@@ -22,7 +22,7 @@ export default function Footer({ setActivePage, onCategorySelect }) {
               <img src="/logo.png" alt="Sri Vastralaya" className="h-20 sm:h-24 w-auto object-contain" />
             </div>
             <p className="text-gray-300 text-xs sm:text-sm leading-relaxed">
-              Bringing you timeless sarees, jewellery, and fashion accessories crafted with love, tradition, and affordability. Owned with pride by <span className="text-[#D4AF37] font-semibold">Praveen & Siri</span>.
+              Bringing you timeless sarees, jewellery, and fashion accessories crafted with love, tradition, and affordability. Owned with pride by <span className="text-[#D4AF37] font-semibold">Pranu & Siri</span>.
             </p>
             <div className="flex items-center gap-3 pt-2">
               <a href="https://instagram.com" target="_blank" rel="noreferrer" className="w-8 h-8 rounded-full bg-[#521117] flex items-center justify-center text-gray-300 hover:text-white hover:bg-[#701A23] transition-colors">
@@ -114,7 +114,7 @@ export default function Footer({ setActivePage, onCategorySelect }) {
               </p>
               <div className="pt-2 text-xs text-gray-400 border-t border-[#521117] mt-3">
                 <span>Owners: </span>
-                <span className="text-white font-medium">Praveen & Siri</span>
+                <span className="text-white font-medium">Pranu & Siri</span>
               </div>
             </div>
           </div>
