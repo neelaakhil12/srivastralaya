@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowRight, Sparkles, ShieldCheck, Truck, Tag, Heart, Award, CheckCircle2, ShoppingBag } from 'lucide-react';
+import { ArrowRight, Sparkles, ShieldCheck, Truck, Tag, Heart, Award, CheckCircle2, ShoppingBag, Star } from 'lucide-react';
 import { InstagramIcon } from '../components/BrandIcons';
 import { categories } from '../data/categories';
 import { products } from '../data/products';
@@ -35,7 +35,21 @@ export default function HomePage({ setActivePage, onCategorySelect }) {
     { id: 3, image: "https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?auto=format&fit=crop&w=400&q=80" },
     { id: 4, image: "https://images.unsplash.com/photo-1590564310418-66304f55a2c2?auto=format&fit=crop&w=400&q=80" },
     { id: 5, image: "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&w=400&q=80" },
+    { id: 5, image: "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&w=400&q=80" },
     { id: 6, image: "https://images.unsplash.com/photo-1609357605129-26f69add5d6e?auto=format&fit=crop&w=400&q=80" }
+  ];
+
+  const customerReviews = [
+    { id: 1, name: "Sneha Reddy", location: "Hyderabad", text: "Absolutely loved the temple jewellery set! The quality is amazing for the price.", rating: 5 },
+    { id: 2, name: "Priya Kumar", location: "Bangalore", text: "The sarees are so elegant and affordable. Fast delivery too!", rating: 5 },
+    { id: 3, name: "Anjali Rao", location: "Chennai", text: "Best place to buy hair accessories for my daughter. Very unique collections.", rating: 4 },
+    { id: 4, name: "Kavya Menon", location: "Kochi", text: "I bought a Kanjeevaram style saree and it looks so premium. Highly recommended.", rating: 5 },
+    { id: 5, name: "Divya Sharma", location: "Mumbai", text: "Great customer service on WhatsApp. They helped me choose the right fit.", rating: 5 },
+    { id: 6, name: "Meera Patel", location: "Ahmedabad", text: "The fancy items section has so many cute things! Will definitely shop again.", rating: 4 },
+    { id: 7, name: "Lakshmi Iyer", location: "Pune", text: "Very happy with the photo frames. They look exactly like the pictures.", rating: 5 },
+    { id: 8, name: "Shruti Desai", location: "Delhi", text: "The dresses are very comfortable and stylish. Perfect for daily wear.", rating: 5 },
+    { id: 9, name: "Nandini Verma", location: "Jaipur", text: "Good quality materials and honest pricing just like they promised.", rating: 4 },
+    { id: 10, name: "Geetha Krishnan", location: "Vijayawada", text: "Sri Vastralaya never disappoints. My go-to store for affordable fashion.", rating: 5 },
   ];
 
   return (
@@ -192,64 +206,6 @@ export default function HomePage({ setActivePage, onCategorySelect }) {
         </p>
       </section>
 
-      {/* 6. SPECIAL PROMO BANNERS */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" data-aos="fade-up">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Promo Card 1: Hair Accessories */}
-          <div className="bg-[#FAF0F1] rounded-2xl p-6 sm:p-8 border border-[#F5DCD0] flex flex-col justify-between space-y-4">
-            <div>
-              <span className="text-xs font-bold uppercase tracking-widest text-[#701A23]">Special Collection</span>
-              <h3 className="font-serif text-2xl font-bold text-gray-900 mt-1">HAIR ACCESSORIES</h3>
-              <p className="text-xs text-gray-600 mt-2">Clips, Scrunchies, Pins & Juda decor starting at just ₹199.</p>
-            </div>
-            <button
-              onClick={() => {
-                if (onCategorySelect) onCategorySelect('hair-accessories');
-                setActivePage('products');
-              }}
-              className="bg-[#701A23] hover:bg-[#521117] text-white py-2.5 px-4 rounded-xl text-xs font-bold self-start transition-colors"
-            >
-              EXPLORE NOW
-            </button>
-          </div>
-
-          {/* Promo Card 2: Jewellery */}
-          <div className="bg-[#F9F3DF] rounded-2xl p-6 sm:p-8 border border-[#E8D9AB] flex flex-col justify-between space-y-4">
-            <div>
-              <span className="text-xs font-bold uppercase tracking-widest text-[#701A23]">Timeless Beauty</span>
-              <h3 className="font-serif text-2xl font-bold text-gray-900 mt-1">TEMPLE JEWELLERY</h3>
-              <p className="text-xs text-gray-600 mt-2">Necklaces, Jhumkas & Pearl Sets crafted for traditional royalty.</p>
-            </div>
-            <button
-              onClick={() => {
-                if (onCategorySelect) onCategorySelect('jewellery');
-                setActivePage('products');
-              }}
-              className="bg-[#701A23] hover:bg-[#521117] text-white py-2.5 px-4 rounded-xl text-xs font-bold self-start transition-colors"
-            >
-              EXPLORE NOW
-            </button>
-          </div>
-
-          {/* Promo Card 3: Main Saree CTA */}
-          <div className="bg-[#701A23] text-white rounded-2xl p-6 sm:p-8 border border-[#521117] flex flex-col justify-between space-y-4 shadow-lg">
-            <div>
-              <span className="text-xs font-bold uppercase tracking-widest text-[#D4AF37]">Best Seller</span>
-              <h3 className="font-serif text-2xl font-bold text-white mt-1">BEAUTIFUL SAREES AFFORDABLE PRICES</h3>
-              <p className="text-xs text-gray-200 mt-2">For every mood. For every moment. Experience silk, linen & cotton drapes.</p>
-            </div>
-            <button
-              onClick={() => {
-                if (onCategorySelect) onCategorySelect('sarees');
-                setActivePage('products');
-              }}
-              className="bg-[#D4AF37] hover:bg-[#c59b27] text-[#701A23] py-2.5 px-4 rounded-xl text-xs font-extrabold self-start transition-colors shadow-sm"
-            >
-              SHOP COLLECTION
-            </button>
-          </div>
-        </div>
-      </section>
 
       {/* 7. WHY CHOOSE SRI VASTRALAYA */}
       <section className="bg-[#FAF8F5] py-12 border-y border-gray-100" data-aos="fade-up">
@@ -311,9 +267,9 @@ export default function HomePage({ setActivePage, onCategorySelect }) {
           <p className="text-xs font-semibold text-[#D4AF37]">@sv_sri_vastralaya</p>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="flex overflow-x-auto gap-3 pb-4 hide-scroll snap-x">
           {instagramPosts.map((post) => (
-            <div key={post.id} className="relative aspect-square rounded-xl overflow-hidden group">
+            <div key={post.id} className="relative aspect-square w-40 sm:w-48 lg:w-56 shrink-0 snap-start rounded-xl overflow-hidden group">
               <img src={post.image} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" />
               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
                 <InstagramIcon className="w-6 h-6" />
@@ -323,7 +279,60 @@ export default function HomePage({ setActivePage, onCategorySelect }) {
         </div>
       </section>
 
-      {/* 9. FINAL MAROON CTA */}
+      {/* 9. CUSTOMER REVIEWS */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6" data-aos="fade-up">
+        <div className="text-center space-y-1">
+          <h2 className="font-serif text-3xl font-bold text-[#1a202c]">WHAT OUR CUSTOMERS SAY</h2>
+          <div className="w-16 h-0.5 bg-gray-800 mx-auto mt-2"></div>
+        </div>
+
+        <div className="overflow-hidden relative w-full pt-2 pb-6">
+          <div className="animate-marquee gap-4 sm:gap-6 pb-2">
+            {/* First Set */}
+            {customerReviews.map((review) => (
+              <div key={`set1-${review.id}`} className="w-72 sm:w-80 shrink-0 bg-white p-6 rounded-2xl border border-gray-100 shadow-xs flex flex-col space-y-4 hover:shadow-md transition-shadow">
+                <div className="flex gap-1 text-amber-400">
+                  {[...Array(review.rating)].map((_, i) => (
+                    <Star key={i} className="w-4 h-4 fill-current text-amber-400" />
+                  ))}
+                </div>
+                <p className="text-sm text-gray-600 italic flex-1">"{review.text}"</p>
+                <div className="flex items-center gap-3 pt-4 border-t border-gray-50">
+                  <div className="w-10 h-10 rounded-full bg-[#FAF0F1] text-[#701A23] flex items-center justify-center font-bold text-lg">
+                    {review.name.charAt(0)}
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-gray-900 text-sm">{review.name}</h4>
+                    <p className="text-xs text-gray-500">{review.location}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+            {/* Duplicate Set for infinite loop */}
+            {customerReviews.map((review) => (
+              <div key={`set2-${review.id}`} className="w-72 sm:w-80 shrink-0 bg-white p-6 rounded-2xl border border-gray-100 shadow-xs flex flex-col space-y-4 hover:shadow-md transition-shadow">
+                <div className="flex gap-1 text-amber-400">
+                  {[...Array(review.rating)].map((_, i) => (
+                    <Star key={i} className="w-4 h-4 fill-current text-amber-400" />
+                  ))}
+                </div>
+                <p className="text-sm text-gray-600 italic flex-1">"{review.text}"</p>
+                <div className="flex items-center gap-3 pt-4 border-t border-gray-50">
+                  <div className="w-10 h-10 rounded-full bg-[#FAF0F1] text-[#701A23] flex items-center justify-center font-bold text-lg">
+                    {review.name.charAt(0)}
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-gray-900 text-sm">{review.name}</h4>
+                    <p className="text-xs text-gray-500">{review.location}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* 10. FINAL MAROON CTA */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8" data-aos="fade-up">
         <div className="bg-[#701A23] rounded-3xl p-8 sm:p-12 text-center text-white space-y-4 shadow-xl relative overflow-hidden">
           <div className="relative z-10 max-w-2xl mx-auto space-y-4">
