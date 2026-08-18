@@ -61,33 +61,20 @@ export default function AdminLogin({ onLoginSuccess, onNavigateToStore, initialS
     e.stopPropagation();
     
     setForgotLoading(true);
-    // Display the green pop notification immediately
     setModalBanner({
       type: 'loading',
-      text: 'Sending password reset link...'
+      text: 'Connecting to Gmail SMTP and sending reset link...'
     });
 
     try {
-      // Guaranteed visible display time so it stays on screen without disappearing in a blink
-      await new Promise((resolve) => setTimeout(resolve, 2500));
+      const res = await sendForgotPasswordEmail(forgotEmail);
+      const successMsg = res?.message || `Password reset link has been successfully sent to ${forgotEmail}! Please check your Gmail inbox.`;
 
-      let res = null;
-      try {
-        res = await sendForgotPasswordEmail(forgotEmail);
-      } catch (backendErr) {
-        console.warn('Backend reset email response:', backendErr);
-      }
-
-      const successMsg = (res && res.message)
-        ? res.message
-        : `Password reset link has been successfully sent to ${forgotEmail}! Please check your Gmail inbox.`;
-
-      // Update to persistent success message that remains visible on screen
       setModalBanner({
         type: 'success',
         text: successMsg
       });
-      setLoginSuccessBanner(`✅ Password reset link has been successfully sent to ${forgotEmail}! Please check your Gmail inbox.`);
+      setLoginSuccessBanner(`✅ ${successMsg}`);
       triggerToast(`✅ ${successMsg}`, 'success');
     } catch (err) {
       setModalBanner({
