@@ -46,10 +46,21 @@ export default async function handler(req, res) {
 
     // Upsert admin record with reset token in Supabase
     try {
+      // Check if admin already exists
+      const { data: existingAdmin } = await supabase
+        .from('admins')
+        .select('id, password_hash')
+        .eq('email', cleanEmail)
+        .single();
+
+      const hashToSave = existingAdmin?.password_hash || await bcrypt.hash('admin@srivastralaya', 10);
+
       await supabase
         .from('admins')
         .upsert({
           email: cleanEmail,
+          password_hash: hashToSave,
+          role: 'admin',
           reset_token: resetToken,
           reset_expires: resetExpires,
           updated_at: new Date().toISOString()
