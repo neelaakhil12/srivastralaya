@@ -133,8 +133,8 @@ export default function AdminDashboard({ onNavigateTab, onOpenNewProduct, onOpen
         {/* 1. Daily Earnings */}
         <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all relative overflow-hidden group">
           <div className="flex items-center justify-between">
-            <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center font-bold text-xl group-hover:scale-110 transition-transform">
-              <DollarSign className="w-6 h-6" />
+            <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center font-extrabold text-2xl group-hover:scale-110 transition-transform">
+              <span>₹</span>
             </div>
             <span className="text-[11px] font-bold px-2.5 py-1 bg-emerald-100/60 text-emerald-800 rounded-full">
               Today
