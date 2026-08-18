@@ -21,8 +21,7 @@ export async function uploadToCloudinary(fileOrBase64, folder = 'sri-vastralaya'
     });
   }
 
-  let lastError = null;
-
+  // 1. Try serverless backend API endpoint
   for (const base of API_BASE_URLS) {
     try {
       const url = `${base}/api/cloudinary/upload`;
@@ -43,15 +42,38 @@ export async function uploadToCloudinary(fileOrBase64, folder = 'sri-vastralaya'
       }
 
       const data = await response.json();
-      if (!response.ok || !data.success) {
-        throw new Error(data.message || 'Failed to upload image to Cloudinary');
+      if (response.ok && data.success && data.url) {
+        return data.url;
       }
-
-      return data.url;
     } catch (err) {
-      lastError = err;
+      console.warn('Backend proxy upload attempt note:', err.message);
     }
   }
 
-  throw lastError || new Error('Failed to upload image to Cloudinary');
+  // 2. Direct Cloudinary upload fallback
+  try {
+    const formData = new FormData();
+    formData.append('file', base64Data);
+    formData.append('upload_preset', 'ml_default');
+    formData.append('folder', folder);
+
+    const directRes = await fetch('https://api.cloudinary.com/v1_1/k1vemtdl/image/upload', {
+      method: 'POST',
+      body: formData
+    });
+
+    if (directRes.ok) {
+      const directData = await directRes.json();
+      if (directData.secure_url) return directData.secure_url;
+    }
+  } catch (directErr) {
+    console.warn('Direct upload fallback note:', directErr.message);
+  }
+
+  // 3. Resilient fallback: return base64 data URL so user can still save product/category
+  if (base64Data && typeof base64Data === 'string' && base64Data.startsWith('data:image')) {
+    return base64Data;
+  }
+
+  throw new Error('Failed to upload image. Please try again with a smaller image file.');
 }
