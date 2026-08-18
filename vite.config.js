@@ -4,12 +4,12 @@ import tailwindcss from '@tailwindcss/vite'
 import { viteApiPlugin } from './server/vitePluginApi.js'
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   plugins: [
     react(),
     tailwindcss(),
-    viteApiPlugin()
-  ],
+    command === 'serve' ? viteApiPlugin() : null
+  ].filter(Boolean),
   server: {
     proxy: {
       '/api': {
@@ -19,4 +19,4 @@ export default defineConfig({
       }
     }
   }
-})
+}))
