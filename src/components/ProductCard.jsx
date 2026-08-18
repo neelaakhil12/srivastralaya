@@ -23,16 +23,20 @@ export default function ProductCard({ product }) {
       className="group bg-transparent overflow-hidden transition-all duration-300 flex flex-col h-full cursor-pointer relative"
     >
       {/* Product Image Container */}
-      <div className="relative aspect-4/5 overflow-hidden rounded-xl">
+      <div className="relative aspect-4/5 overflow-hidden rounded-xl bg-white border border-gray-100/80 flex items-center justify-center">
         <img
           src={product.image}
           alt={product.name}
           loading="lazy"
-          className="w-full h-full object-cover object-center group-hover:scale-108 transition-transform duration-500 ease-out"
+          className={`w-full h-full object-contain p-1 transition-all duration-500 ease-out ${
+            product.inStock === false
+              ? 'blur-[2.5px] opacity-55 grayscale-[30%]'
+              : 'group-hover:scale-105'
+          }`}
         />
 
         {/* Discount Badge */}
-        {product.discount && (
+        {product.discount && product.inStock !== false && (
           <div className="absolute top-2 left-2 z-10">
             <span className="bg-[#cd9a5b] text-white text-[10px] sm:text-xs font-bold px-2 py-1 rounded">
               {product.discount}
@@ -40,10 +44,19 @@ export default function ProductCard({ product }) {
           </div>
         )}
 
+        {/* Out of Stock Overlay Badge */}
+        {product.inStock === false && (
+          <div className="absolute inset-0 bg-white/40 backdrop-blur-[1px] flex items-center justify-center z-15 pointer-events-none">
+            <span className="bg-red-600 text-white font-extrabold text-[10px] sm:text-xs px-3 py-1.5 rounded-lg shadow-md tracking-wider uppercase border border-red-700">
+              Out of Stock
+            </span>
+          </div>
+        )}
+
         {/* Wishlist Heart */}
         <button 
           onClick={(e) => { e.stopPropagation(); toggleWishlist(product); }}
-          className={`absolute top-2 right-2 w-8 h-8 bg-white rounded-full flex items-center justify-center z-10 shadow-sm transition-colors ${
+          className={`absolute top-2 right-2 w-8 h-8 bg-white rounded-full flex items-center justify-center z-20 shadow-sm transition-colors cursor-pointer ${
             isLiked ? 'text-red-500' : 'text-gray-500 hover:text-red-500'
           }`}
         >
@@ -51,13 +64,22 @@ export default function ProductCard({ product }) {
         </button>
 
         {/* Quick Add Button */}
-        <div className="absolute bottom-2 left-2 right-2 z-10 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-300">
-          <button 
-             onClick={(e) => { e.stopPropagation(); addToCart(product); }}
-             className="w-full bg-[#fcf8f2] hover:bg-white text-gray-800 text-[10px] sm:text-xs font-bold py-2 sm:py-2.5 rounded shadow-sm tracking-widest"
-          >
-            QUICK ADD
-          </button>
+        <div className="absolute bottom-2 left-2 right-2 z-20 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-300">
+          {product.inStock !== false ? (
+            <button 
+              onClick={(e) => { e.stopPropagation(); addToCart(product); }}
+              className="w-full bg-[#fcf8f2] hover:bg-white text-gray-800 text-[10px] sm:text-xs font-bold py-2 sm:py-2.5 rounded shadow-sm tracking-widest cursor-pointer"
+            >
+              QUICK ADD
+            </button>
+          ) : (
+            <button 
+              disabled
+              className="w-full bg-red-600 text-white text-[10px] sm:text-xs font-bold py-2 sm:py-2.5 rounded shadow-sm tracking-widest cursor-not-allowed opacity-90"
+            >
+              OUT OF STOCK
+            </button>
+          )}
         </div>
       </div>
 

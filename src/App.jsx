@@ -21,18 +21,50 @@ import ProductsPage from './pages/ProductsPage';
 import OurStoryPage from './pages/OurStoryPage';
 import ContactPage from './pages/ContactPage';
 import SplashScreen from './components/SplashScreen';
+import AdminApp from './admin/AdminApp';
 
 function AppContent() {
-  const [activePage, setActivePage] = useState('home');
+  const [activePage, setActivePage] = useState(() => {
+    const path = window.location.pathname.toLowerCase();
+    const hash = window.location.hash.toLowerCase();
+    if (path.startsWith('/admin') || hash.startsWith('#admin')) {
+      return 'admin';
+    }
+    return 'home';
+  });
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [showSplash, setShowSplash] = useState(true);
+  const [showSplash, setShowSplash] = useState(() => {
+    const path = window.location.pathname.toLowerCase();
+    const hash = window.location.hash.toLowerCase();
+    return !path.startsWith('/admin') && !hash.startsWith('#admin');
+  });
+
+  useEffect(() => {
+    const handleLocationChange = () => {
+      const path = window.location.pathname.toLowerCase();
+      const hash = window.location.hash.toLowerCase();
+      if (path.startsWith('/admin') || hash.startsWith('#admin')) {
+        setActivePage('admin');
+      }
+    };
+
+    window.addEventListener('popstate', handleLocationChange);
+    window.addEventListener('hashchange', handleLocationChange);
+    return () => {
+      window.removeEventListener('popstate', handleLocationChange);
+      window.removeEventListener('hashchange', handleLocationChange);
+    };
+  }, []);
 
   useEffect(() => {
     AOS.init({
-      duration: 800,
-      once: false,
-      mirror: true,
-      easing: 'ease-out-cubic',
+      duration: 350,
+      offset: 30,
+      delay: 0,
+      once: true,
+      mirror: false,
+      easing: 'ease-out',
+      anchorPlacement: 'top-bottom',
     });
   }, []);
 
@@ -43,6 +75,21 @@ function AppContent() {
   const handleCategorySelect = (catId) => {
     setSelectedCategory(catId);
   };
+
+  const handleNavigateToStore = () => {
+    setActivePage('home');
+    window.history.pushState({}, '', '/');
+  };
+
+  // If in Admin portal, render AdminApp directly
+  if (activePage === 'admin') {
+    return (
+      <div className="min-h-screen bg-gray-50 font-sans antialiased text-gray-900 selection:bg-[#701A23] selection:text-white">
+        <Toast />
+        <AdminApp onNavigateToStore={handleNavigateToStore} />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-white font-sans antialiased text-gray-900 selection:bg-[#701A23] selection:text-white">

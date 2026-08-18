@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Trash2, ShoppingBag, ArrowRight, MessageCircle, Truck, Sparkles, Check } from 'lucide-react';
 import { useCart } from '../context/CartContext';
+import { addOrder } from '../services/supabase';
 
 export default function CartDrawer({ setActivePage }) {
   const {
@@ -36,10 +37,40 @@ export default function CartDrawer({ setActivePage }) {
   const discountAmount = (subtotal * discountPercent) / 100;
   const finalTotal = subtotal - discountAmount;
 
-  const handleWhatsAppCheckout = () => {
+  const handleWhatsAppCheckout = async () => {
     if (cartItems.length === 0) return;
 
+    const orderId = `ORD-${Date.now().toString().slice(-6)}`;
+    const shippingCharge = isFreeShipping ? 0 : 99;
+    const finalBill = finalTotal + shippingCharge;
+
+    // Save order record to Supabase
+    try {
+      await addOrder({
+        id: orderId,
+        customerName: 'WhatsApp Customer',
+        customerPhone: '+91 9618093699',
+        customerAddress: 'Online Order via Website',
+        items: cartItems.map(item => ({
+          id: item.id,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+          image: item.image
+        })),
+        subtotal: subtotal,
+        discount: discountAmount,
+        shipping: shippingCharge,
+        total: finalBill,
+        status: 'Pending',
+        paymentMethod: 'WhatsApp / UPI'
+      });
+    } catch (err) {
+      console.warn('Could not record order in Supabase:', err);
+    }
+
     let text = `*New Order Request - Sri Vastralaya*\n`;
+    text += `*Order ID:* #${orderId}\n`;
     text += `-----------------------------------\n`;
     cartItems.forEach((item, index) => {
       text += `${index + 1}. *${item.name}*\n   Qty: ${item.quantity} x ₹${item.price} = ₹${item.price * item.quantity}\n`;
@@ -50,7 +81,7 @@ export default function CartDrawer({ setActivePage }) {
       text += `*Discount (SRI10):* -₹${discountAmount.toLocaleString('en-IN')}\n`;
     }
     text += `*Estimated Shipping:* ${isFreeShipping ? 'FREE' : '₹99'}\n`;
-    text += `*Total Amount:* ₹${(finalTotal + (isFreeShipping ? 0 : 99)).toLocaleString('en-IN')}\n\n`;
+    text += `*Total Amount:* ₹${finalBill.toLocaleString('en-IN')}\n\n`;
     text += `Please confirm availability and payment instructions. Thank you!`;
 
     window.open(`https://wa.me/919618093699?text=${encodeURIComponent(text)}`, '_blank');
@@ -135,11 +166,13 @@ export default function CartDrawer({ setActivePage }) {
                     key={item.itemKey}
                     className="flex gap-3 bg-gray-50 p-3 rounded-xl border border-gray-100 relative group"
                   >
-                    <img
-                      src={item.image}
-                      alt={item.name}
-                      className="w-20 h-24 object-cover rounded-lg shrink-0"
-                    />
+                    <div className="w-20 h-24 rounded-lg bg-white border border-gray-200 shrink-0 p-1 flex items-center justify-center overflow-hidden">
+                      <img
+                        src={item.image}
+                        alt={item.name}
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
 
                     <div className="flex-1 flex flex-col justify-between">
                       <div>

@@ -1,17 +1,27 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, X, ShoppingBag } from 'lucide-react';
 import { useUI } from '../context/UIContext';
-import { products } from '../data/products';
+import { products as defaultProducts } from '../data/products';
+import { getProducts } from '../services/supabase';
 
 export default function SearchModal({ setActivePage, onProductSelect }) {
   const { isSearchOpen, setIsSearchOpen, openQuickView } = useUI();
   const [query, setQuery] = useState('');
+  const [productsList, setProductsList] = useState(defaultProducts);
+
+  useEffect(() => {
+    if (isSearchOpen) {
+      getProducts().then(prods => {
+        if (prods && prods.length > 0) setProductsList(prods);
+      }).catch(() => {});
+    }
+  }, [isSearchOpen]);
 
   if (!isSearchOpen) return null;
 
   const filtered = query.trim() === ''
     ? []
-    : products.filter(p =>
+    : productsList.filter(p =>
         p.name.toLowerCase().includes(query.toLowerCase()) ||
         p.category.toLowerCase().includes(query.toLowerCase()) ||
         p.subcategory.toLowerCase().includes(query.toLowerCase()) ||

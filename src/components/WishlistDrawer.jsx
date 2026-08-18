@@ -65,11 +65,13 @@ export default function WishlistDrawer({ setActivePage }) {
                     key={item.id}
                     className="flex gap-3 bg-gray-50 p-3 rounded-xl border border-gray-100 relative"
                   >
-                    <img
-                      src={item.image}
-                      alt={item.name}
-                      className="w-20 h-24 object-cover rounded-lg shrink-0"
-                    />
+                    <div className="w-20 h-24 rounded-lg bg-white border border-gray-200 shrink-0 p-1 flex items-center justify-center overflow-hidden">
+                      <img
+                        src={item.image}
+                        alt={item.name}
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
 
                     <div className="flex-1 flex flex-col justify-between">
                       <div>

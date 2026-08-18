@@ -1,21 +1,45 @@
-import React, { useState, useMemo } from 'react';
-import { Search, Filter, SlidersHorizontal, RefreshCw, ShoppingBag } from 'lucide-react';
-import { products } from '../data/products';
-import { categories } from '../data/categories';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Search, Filter, SlidersHorizontal, RefreshCw, ShoppingBag, Loader2 } from 'lucide-react';
+import { products as initialProducts } from '../data/products';
+import { categories as initialCategories } from '../data/categories';
+import { getProducts, getCategories } from '../services/supabase';
 import ProductCard from '../components/ProductCard';
 
 export default function ProductsPage({ selectedCategory, setSelectedCategory }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('featured');
   const [maxPrice, setMaxPrice] = useState(2500);
+  const [productsList, setProductsList] = useState(initialProducts);
+  const [categoriesList, setCategoriesList] = useState(initialCategories);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        setLoading(true);
+        const [prods, cats] = await Promise.all([getProducts(), getCategories()]);
+        if (prods && prods.length > 0) setProductsList(prods);
+        if (cats && cats.length > 0) setCategoriesList(cats);
+      } catch (err) {
+        console.warn('Could not load live store products:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadData();
+
+    const handleSync = () => loadData();
+    window.addEventListener('sv_products_updated', handleSync);
+    return () => window.removeEventListener('sv_products_updated', handleSync);
+  }, []);
 
   const categoryList = [
     { id: 'all', name: 'All Products' },
-    ...categories.map(c => ({ id: c.id, name: c.name }))
+    ...categoriesList.map(c => ({ id: c.id, name: c.name }))
   ];
 
   const filteredProducts = useMemo(() => {
-    return products.filter(product => {
+    return productsList.filter(product => {
       // Category filter
       if (selectedCategory && selectedCategory !== 'all' && product.category !== selectedCategory) {
         return false;
@@ -125,7 +149,7 @@ export default function ProductsPage({ selectedCategory, setSelectedCategory }) 
 
       {/* Active Filter Counter */}
       <div className="flex items-center justify-between text-xs text-gray-500 px-1">
-        <span>Showing <strong>{filteredProducts.length}</strong> of {products.length} items</span>
+        <span>Showing <strong>{filteredProducts.length}</strong> of {productsList.length} items</span>
       </div>
 
       {/* Product Grid */}
@@ -149,7 +173,7 @@ export default function ProductsPage({ selectedCategory, setSelectedCategory }) 
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
           {filteredProducts.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}

@@ -31,12 +31,23 @@ export default function SplashScreen({ onComplete }) {
 
   return (
     <div className={`fixed inset-0 z-[9999] bg-[#E2CDAE] flex items-center justify-center overflow-hidden ${isFadingOut ? 'animate-fade-out-splash' : ''}`}>
-      {/* Background Image (Blurred initially) */}
-      <img 
-        src="/splash-image.png" 
-        alt="Sri Vastralaya" 
-        className={`w-full h-full object-contain sm:object-cover transition-all duration-1000 ${isRevealed ? 'blur-0 scale-100' : 'blur-xl scale-110'}`} 
-      />
+      {/* Background Image: Mobile vs Desktop */}
+      <picture className="w-full h-full">
+        {/* Mobile View Image */}
+        <source media="(max-width: 639px)" srcSet="/splash-mobile.png" />
+        {/* Desktop View Image (Unchanged) */}
+        <img 
+          src="/splash-image.png" 
+          alt="Sri Vastralaya" 
+          onError={(e) => {
+            // Fallback if splash-mobile.png is not yet present
+            if (e.target.src !== '/splash-image.png') {
+              e.target.src = '/splash-image.png';
+            }
+          }}
+          className={`w-full h-full object-cover transition-all duration-1000 ${isRevealed ? 'blur-0 scale-100' : 'blur-xl scale-110'}`} 
+        />
+      </picture>
       
       {/* Countdown Overlay */}
       {!isRevealed && (

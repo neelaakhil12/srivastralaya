@@ -1,11 +1,34 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowRight, Sparkles, ShieldCheck, Truck, Tag, Heart, Award, CheckCircle2, ShoppingBag, Star } from 'lucide-react';
 import { InstagramIcon } from '../components/BrandIcons';
-import { categories } from '../data/categories';
-import { products } from '../data/products';
+import { categories as defaultCategories } from '../data/categories';
+import { products as defaultProducts } from '../data/products';
+import { getCategories, getProducts } from '../services/supabase';
 import ProductCard from '../components/ProductCard';
+import AOS from 'aos';
 
 export default function HomePage({ setActivePage, onCategorySelect }) {
+  const [categoriesList, setCategoriesList] = useState(defaultCategories);
+  const [productsList, setProductsList] = useState(defaultProducts);
+
+  useEffect(() => {
+    async function loadLive() {
+      try {
+        const [cats, prods] = await Promise.all([getCategories(), getProducts()]);
+        if (cats && cats.length > 0) setCategoriesList(cats);
+        if (prods && prods.length > 0) setProductsList(prods);
+        setTimeout(() => AOS.refresh(), 50);
+      } catch (e) {
+        console.warn('HomePage live data note:', e);
+      }
+    }
+    loadLive();
+
+    const handleSync = () => loadLive();
+    window.addEventListener('sv_products_updated', handleSync);
+    return () => window.removeEventListener('sv_products_updated', handleSync);
+  }, []);
+
   const sliderImages = [
     '/slider/image.png',
     '/slider/image copy.png',
@@ -25,9 +48,15 @@ export default function HomePage({ setActivePage, onCategorySelect }) {
     return () => clearInterval(slideInterval);
   }, []);
 
-  const featuredProducts = products.filter(p => p.isFeatured || p.isNew).slice(0, 4);
-  const bestSellers = products.filter(p => p.rating >= 4.5 && !p.isNew).slice(0, 4);
-  const trendingProducts = [...products].sort((a, b) => b.reviewsCount - a.reviewsCount).slice(0, 4);
+  const featuredProducts = productsList.filter(p => p.isFeatured).slice(0, 8);
+  const explicitBestSellers = productsList.filter(p => p.isBestSeller);
+  const bestSellers = explicitBestSellers.length > 0
+    ? explicitBestSellers.slice(0, 8)
+    : [...productsList].sort((a, b) => (b.reviewsCount || 0) - (a.reviewsCount || 0)).slice(0, 4);
+  const explicitTrending = productsList.filter(p => p.isTrending);
+  const trendingProducts = explicitTrending.length > 0
+    ? explicitTrending.slice(0, 8)
+    : [...productsList].sort((a, b) => (b.reviewsCount || 0) - (a.reviewsCount || 0)).slice(0, 8);
 
   const instagramPosts = [
     { id: 1, image: "/products/generic-product.png" },
@@ -117,7 +146,7 @@ export default function HomePage({ setActivePage, onCategorySelect }) {
         </div>
 
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
-          {categories.map((cat) => (
+          {categoriesList.map((cat) => (
             <div
               key={cat.id}
               onClick={() => {

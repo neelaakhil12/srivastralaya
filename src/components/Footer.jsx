@@ -56,6 +56,18 @@ export default function Footer({ setActivePage, onCategorySelect }) {
                   </li>
                 );
               })}
+              <li>
+                <button
+                  onClick={() => {
+                    setActivePage('admin');
+                    window.history.pushState({}, '', '/admin');
+                    scrollToTop();
+                  }}
+                  className="text-gray-300 hover:text-[#D4AF37] transition-colors flex items-center gap-1.5 font-semibold text-[#D4AF37]/90"
+                >
+                  <span className="text-[#D4AF37]">›</span> Admin Portal 🔐
+                </button>
+              </li>
             </ul>
           </div>
 

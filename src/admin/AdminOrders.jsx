@@ -1,0 +1,478 @@
+import React, { useState, useEffect } from 'react';
+import {
+  ShoppingBag,
+  Search,
+  Eye,
+  Plus,
+  Trash2,
+  X,
+  Loader2,
+  Phone,
+  MapPin
+} from 'lucide-react';
+import { getOrders, updateOrderStatus, addOrder, deleteOrder } from '../services/supabase';
+
+export default function AdminOrders() {
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+
+  // Order Details Modal
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  
+  // New Manual Order Modal
+  const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+  const [manualFormData, setManualFormData] = useState({
+    customerName: '',
+    customerPhone: '',
+    customerAddress: '',
+    itemTitle: '',
+    itemPrice: '',
+    quantity: 1,
+    paymentMethod: 'Cash on Delivery / UPI'
+  });
+  const [submittingManual, setSubmittingManual] = useState(false);
+
+  useEffect(() => {
+    fetchOrdersList();
+  }, []);
+
+  const fetchOrdersList = async () => {
+    setLoading(true);
+    try {
+      const data = await getOrders();
+      setOrders(data || []);
+    } catch (err) {
+      console.error('Failed to load orders:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStatusChange = async (orderId, newStatus) => {
+    try {
+      await updateOrderStatus(orderId, newStatus);
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
+      if (selectedOrder && selectedOrder.id === orderId) {
+        setSelectedOrder(prev => ({ ...prev, status: newStatus }));
+      }
+    } catch (err) {
+      alert('Failed to update status: ' + err.message);
+    }
+  };
+
+  const handleDelete = async (orderId) => {
+    if (!window.confirm(`Delete order #${orderId}?`)) return;
+    try {
+      await deleteOrder(orderId);
+      setOrders(prev => prev.filter(o => o.id !== orderId));
+      if (selectedOrder?.id === orderId) setSelectedOrder(null);
+    } catch (err) {
+      alert('Failed to delete order: ' + err.message);
+    }
+  };
+
+  const handleCreateManualOrder = async (e) => {
+    e.preventDefault();
+    setSubmittingManual(true);
+    try {
+      const price = Number(manualFormData.itemPrice) || 0;
+      const qty = Number(manualFormData.quantity) || 1;
+      const total = price * qty;
+
+      const orderPayload = {
+        id: `MAN-${Date.now().toString().slice(-6)}`,
+        customerName: manualFormData.customerName,
+        customerPhone: manualFormData.customerPhone,
+        customerAddress: manualFormData.customerAddress,
+        items: [
+          {
+            id: 'item-custom',
+            name: manualFormData.itemTitle,
+            price: price,
+            quantity: qty
+          }
+        ],
+        subtotal: total,
+        discount: 0,
+        shipping: 0,
+        total: total,
+        status: 'Completed',
+        paymentMethod: manualFormData.paymentMethod,
+        notes: 'In-Store / Direct WhatsApp Booking'
+      };
+
+      await addOrder(orderPayload);
+      await fetchOrdersList();
+      setIsManualModalOpen(false);
+      setManualFormData({
+        customerName: '',
+        customerPhone: '',
+        customerAddress: '',
+        itemTitle: '',
+        itemPrice: '',
+        quantity: 1,
+        paymentMethod: 'Cash on Delivery / UPI'
+      });
+    } catch (err) {
+      alert('Failed to add manual order: ' + err.message);
+    } finally {
+      setSubmittingManual(false);
+    }
+  };
+
+  const filteredOrders = orders.filter(order => {
+    const matchesSearch = (order.id && order.id.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                          (order.customerName && order.customerName.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                          (order.customerPhone && order.customerPhone.includes(searchQuery));
+    const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  return (
+    <div className="space-y-6 animate-fadeIn">
+      {/* Header & Action bar */}
+      <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h2 className="font-serif text-xl font-bold text-gray-900 flex items-center gap-2">
+              <ShoppingBag className="w-5 h-5 text-[#701A23]" />
+              <span>Orders Management</span>
+            </h2>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Track customer orders, process fulfillment, and monitor daily revenue
+            </p>
+          </div>
+
+          <button
+            onClick={() => setIsManualModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-[#701A23] hover:bg-[#521117] text-white rounded-xl text-xs font-bold shadow-md transition-all cursor-pointer whitespace-nowrap"
+          >
+            <Plus className="w-4 h-4 text-[#D4AF37]" />
+            <span>Create Manual Order</span>
+          </button>
+        </div>
+
+        {/* Filters */}
+        <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-gray-100">
+          <div className="relative flex-1 min-w-[220px]">
+            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Search by order ID, customer name or phone..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#701A23]"
+            />
+          </div>
+
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#701A23]"
+          >
+            <option value="all">All Order Statuses</option>
+            <option value="Pending">Pending</option>
+            <option value="Processing">Processing</option>
+            <option value="Completed">Completed</option>
+            <option value="Cancelled">Cancelled</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Orders Table */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+        {loading ? (
+          <div className="py-20 text-center flex flex-col items-center justify-center text-gray-400">
+            <Loader2 className="w-8 h-8 animate-spin text-[#701A23] mb-2" />
+            <p className="text-xs font-medium">Fetching orders from Supabase...</p>
+          </div>
+        ) : filteredOrders.length === 0 ? (
+          <div className="py-16 text-center text-gray-400">
+            <ShoppingBag className="w-12 h-12 mx-auto mb-2 text-gray-300" />
+            <p className="text-sm font-bold text-gray-700">No orders found</p>
+            <p className="text-xs text-gray-500 mt-1">Orders placed on WhatsApp or website will appear here.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-[#FAF0F1]/50 border-b border-gray-100 text-gray-500 uppercase tracking-wider font-semibold">
+                <tr>
+                  <th className="py-3.5 px-4">Order ID</th>
+                  <th className="py-3.5 px-4">Customer Details</th>
+                  <th className="py-3.5 px-4">Items Count</th>
+                  <th className="py-3.5 px-4">Total Amount</th>
+                  <th className="py-3.5 px-4">Date</th>
+                  <th className="py-3.5 px-4">Status</th>
+                  <th className="py-3.5 px-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {filteredOrders.map((order) => (
+                  <tr key={order.id} className="hover:bg-gray-50/60 transition-colors">
+                    {/* Order ID */}
+                    <td className="py-3.5 px-4 font-mono font-bold text-gray-900">
+                      #{order.id}
+                    </td>
+
+                    {/* Customer */}
+                    <td className="py-3.5 px-4">
+                      <p className="font-bold text-gray-900">{order.customerName || 'WhatsApp Customer'}</p>
+                      <p className="text-[11px] text-gray-400 flex items-center gap-1 mt-0.5">
+                        <Phone className="w-3 h-3" />
+                        <span>{order.customerPhone || 'N/A'}</span>
+                      </p>
+                    </td>
+
+                    {/* Items */}
+                    <td className="py-3.5 px-4 font-medium text-gray-700">
+                      {order.items?.length || 1} items
+                    </td>
+
+                    {/* Amount */}
+                    <td className="py-3.5 px-4">
+                      <span className="font-extrabold text-sm text-[#701A23]">
+                        ₹{Number(order.total).toLocaleString('en-IN')}
+                      </span>
+                    </td>
+
+                    {/* Date */}
+                    <td className="py-3.5 px-4 text-gray-500 text-[11px]">
+                      {order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-IN', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric'
+                      }) : 'Today'}
+                    </td>
+
+                    {/* Status Dropdown */}
+                    <td className="py-3.5 px-4">
+                      <select
+                        value={order.status}
+                        onChange={(e) => handleStatusChange(order.id, e.target.value)}
+                        className={`text-[11px] font-bold rounded-lg px-2.5 py-1 border focus:outline-none cursor-pointer ${
+                          order.status === 'Completed'
+                            ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                            : order.status === 'Processing'
+                            ? 'bg-blue-50 text-blue-800 border-blue-200'
+                            : order.status === 'Cancelled'
+                            ? 'bg-red-50 text-red-800 border-red-200'
+                            : 'bg-amber-50 text-amber-800 border-amber-200'
+                        }`}
+                      >
+                        <option value="Pending">Pending</option>
+                        <option value="Processing">Processing</option>
+                        <option value="Completed">Completed</option>
+                        <option value="Cancelled">Cancelled</option>
+                      </select>
+                    </td>
+
+                    {/* Actions */}
+                    <td className="py-3.5 px-4 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => setSelectedOrder(order)}
+                          className="p-1.5 text-gray-600 hover:text-[#701A23] hover:bg-[#FAF0F1] rounded-lg transition-colors"
+                          title="View Invoice & Items"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(order.id)}
+                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Delete Order"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Order Details Drawer / Modal */}
+      {selectedOrder && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl relative animate-fadeIn border border-gray-100">
+            <div className="flex items-center justify-between pb-4 border-b border-gray-100">
+              <div>
+                <span className="text-[11px] font-mono text-gray-400">Order Summary</span>
+                <h3 className="font-serif font-bold text-xl text-gray-900">
+                  #{selectedOrder.id}
+                </h3>
+              </div>
+              <button
+                onClick={() => setSelectedOrder(null)}
+                className="p-1.5 text-gray-400 hover:text-gray-700 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Customer info */}
+            <div className="my-4 p-4 bg-gray-50 rounded-2xl space-y-1.5 text-xs text-gray-700">
+              <p className="font-bold text-sm text-gray-900">{selectedOrder.customerName}</p>
+              <p className="flex items-center gap-2 text-gray-600">
+                <Phone className="w-3.5 h-3.5 text-gray-400" />
+                <span>{selectedOrder.customerPhone}</span>
+              </p>
+              {selectedOrder.customerAddress && (
+                <p className="flex items-center gap-2 text-gray-600">
+                  <MapPin className="w-3.5 h-3.5 text-gray-400" />
+                  <span>{selectedOrder.customerAddress}</span>
+                </p>
+              )}
+            </div>
+
+            {/* Itemized List */}
+            <div className="space-y-2 max-h-56 overflow-y-auto border-t border-b border-gray-100 py-3">
+              <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Ordered Products</p>
+              {selectedOrder.items?.map((item, i) => (
+                <div key={i} className="flex justify-between items-center text-xs py-1.5">
+                  <div className="flex-1 min-w-0 pr-2">
+                    <p className="font-bold text-gray-800 truncate">{item.name}</p>
+                    <p className="text-[11px] text-gray-400">Qty: {item.quantity || 1} x ₹{Number(item.price).toLocaleString('en-IN')}</p>
+                  </div>
+                  <span className="font-bold text-[#701A23]">
+                    ₹{((item.quantity || 1) * Number(item.price)).toLocaleString('en-IN')}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {/* Totals */}
+            <div className="pt-3 space-y-1.5 text-xs">
+              <div className="flex justify-between text-gray-600">
+                <span>Subtotal:</span>
+                <span>₹{Number(selectedOrder.subtotal).toLocaleString('en-IN')}</span>
+              </div>
+              {selectedOrder.discount > 0 && (
+                <div className="flex justify-between text-emerald-600 font-medium">
+                  <span>Discount:</span>
+                  <span>-₹{Number(selectedOrder.discount).toLocaleString('en-IN')}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-base font-extrabold text-gray-900 pt-2 border-t border-gray-100">
+                <span>Total Amount:</span>
+                <span className="text-[#701A23]">₹{Number(selectedOrder.total).toLocaleString('en-IN')}</span>
+              </div>
+            </div>
+
+            <div className="mt-5 flex gap-3">
+              <button
+                onClick={() => setSelectedOrder(null)}
+                className="w-full py-2.5 bg-gray-900 hover:bg-black text-white font-bold rounded-xl text-xs"
+              >
+                Close Summary
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Manual Order Creation Modal */}
+      {isManualModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl relative animate-fadeIn border border-gray-100">
+            <div className="flex items-center justify-between pb-4 border-b border-gray-100">
+              <h3 className="font-serif font-bold text-lg text-gray-900">
+                Create Manual Order
+              </h3>
+              <button
+                onClick={() => setIsManualModalOpen(false)}
+                className="p-1.5 text-gray-400 hover:text-gray-700 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateManualOrder} className="space-y-4 mt-4 text-xs">
+              <div>
+                <label className="block font-bold text-gray-700 uppercase mb-1">Customer Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={manualFormData.customerName}
+                  onChange={(e) => setManualFormData(prev => ({ ...prev, customerName: e.target.value }))}
+                  placeholder="e.g. Radhika Sharma"
+                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:bg-white focus:ring-2 focus:ring-[#701A23] focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-gray-700 uppercase mb-1">Phone Number *</label>
+                <input
+                  type="text"
+                  required
+                  value={manualFormData.customerPhone}
+                  onChange={(e) => setManualFormData(prev => ({ ...prev, customerPhone: e.target.value }))}
+                  placeholder="+91 96180 93699"
+                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:bg-white focus:ring-2 focus:ring-[#701A23] focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-gray-700 uppercase mb-1">Item Title / Notes *</label>
+                <input
+                  type="text"
+                  required
+                  value={manualFormData.itemTitle}
+                  onChange={(e) => setManualFormData(prev => ({ ...prev, itemTitle: e.target.value }))}
+                  placeholder="e.g. Royal Maroon Silk Cotton Saree"
+                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:bg-white focus:ring-2 focus:ring-[#701A23] focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-gray-700 uppercase mb-1">Unit Price (₹) *</label>
+                  <input
+                    type="number"
+                    required
+                    value={manualFormData.itemPrice}
+                    onChange={(e) => setManualFormData(prev => ({ ...prev, itemPrice: e.target.value }))}
+                    placeholder="899"
+                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-[#701A23] focus:bg-white focus:ring-2 focus:ring-[#701A23] focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-gray-700 uppercase mb-1">Quantity *</label>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    value={manualFormData.quantity}
+                    onChange={(e) => setManualFormData(prev => ({ ...prev, quantity: e.target.value }))}
+                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:bg-white focus:ring-2 focus:ring-[#701A23] focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => setIsManualModalOpen(false)}
+                  className="flex-1 py-2.5 border border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingManual}
+                  className="flex-1 py-2.5 bg-[#701A23] hover:bg-[#521117] text-white font-bold rounded-xl shadow-md flex items-center justify-center gap-2"
+                >
+                  {submittingManual ? <Loader2 className="w-4 h-4 animate-spin" /> : <span>Record Order</span>}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -1,0 +1,11 @@
+{
+  "admins": {
+    "srivastralaya6@gmail.com": {
+      "email": "srivastralaya6@gmail.com",
+      "password_hash": "$2b$10$1PMtFbuFaxrKXV1ZGK.tR.a2cdWK.hVBHfW.ijJjRwP/BE2NWQqm.",
+      "role": "admin",
+      "reset_token": null,
+      "reset_expires": null
+    }
+  }
+}

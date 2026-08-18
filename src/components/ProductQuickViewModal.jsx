@@ -13,6 +13,18 @@ export default function ProductQuickViewModal() {
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedSize, setSelectedSize] = useState(null);
 
+  React.useEffect(() => {
+    if (quickViewProduct) {
+      setQuantity(1);
+      setSelectedImage(0);
+      if (quickViewProduct.sizes && Array.isArray(quickViewProduct.sizes) && quickViewProduct.sizes.length > 0) {
+        setSelectedSize(quickViewProduct.sizes[0]);
+      } else {
+        setSelectedSize(null);
+      }
+    }
+  }, [quickViewProduct]);
+
   if (!quickViewProduct) return null;
 
   const isLiked = isInWishlist(quickViewProduct.id);
@@ -51,16 +63,25 @@ export default function ProductQuickViewModal() {
 
         {/* Left Side: Product Image Gallery */}
         <div className="md:w-1/2 p-4 sm:p-6 bg-gray-50 flex flex-col justify-between">
-          <div className="relative aspect-4/5 rounded-xl overflow-hidden bg-white shadow-inner mb-4">
+          <div className="relative aspect-4/5 rounded-2xl overflow-hidden bg-white shadow-xs border border-gray-100 flex items-center justify-center mb-4">
             <img
               src={images[selectedImage] || quickViewProduct.image}
               alt={quickViewProduct.name}
-              className="w-full h-full object-cover"
+              className={`w-full h-full object-contain p-2 transition-all duration-300 ${
+                quickViewProduct.inStock === false ? 'blur-[3px] opacity-55 grayscale-[30%]' : ''
+              }`}
             />
-            {quickViewProduct.discount && (
+            {quickViewProduct.discount && quickViewProduct.inStock !== false && (
               <span className="absolute top-3 left-3 bg-[#D4AF37] text-[#701A23] font-bold text-xs px-2.5 py-1 rounded-md shadow-xs">
                 {quickViewProduct.discount}
               </span>
+            )}
+            {quickViewProduct.inStock === false && (
+              <div className="absolute inset-0 bg-white/40 backdrop-blur-[1px] flex items-center justify-center z-10 pointer-events-none">
+                <span className="bg-red-600 text-white font-extrabold text-xs sm:text-sm px-4 py-2 rounded-xl shadow-lg tracking-wider uppercase border border-red-700">
+                  Out of Stock
+                </span>
+              </div>
             )}
           </div>
 
@@ -71,11 +92,11 @@ export default function ProductQuickViewModal() {
                 <button
                   key={idx}
                   onClick={() => setSelectedImage(idx)}
-                  className={`w-16 h-16 rounded-lg overflow-hidden border-2 transition-all shrink-0 ${
-                    selectedImage === idx ? 'border-[#701A23]' : 'border-transparent opacity-70 hover:opacity-100'
+                  className={`w-16 h-16 rounded-xl overflow-hidden border-2 bg-white p-1 flex items-center justify-center transition-all shrink-0 cursor-pointer ${
+                    selectedImage === idx ? 'border-[#701A23] shadow-xs' : 'border-gray-200 opacity-70 hover:opacity-100'
                   }`}
                 >
-                  <img src={img} alt="" className="w-full h-full object-cover" />
+                  <img src={img} alt="" className="w-full h-full object-contain" />
                 </button>
               ))}
             </div>
@@ -90,9 +111,15 @@ export default function ProductQuickViewModal() {
               <span className="text-xs uppercase font-bold tracking-wider text-[#D4AF37]">
                 {quickViewProduct.subcategory || quickViewProduct.category}
               </span>
-              <span className="bg-emerald-50 text-emerald-700 text-[11px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1 border border-emerald-200">
-                <Check className="w-3 h-3" /> In Stock
-              </span>
+              {quickViewProduct.inStock !== false ? (
+                <span className="bg-emerald-50 text-emerald-700 text-[11px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1 border border-emerald-200">
+                  <Check className="w-3 h-3" /> In Stock
+                </span>
+              ) : (
+                <span className="bg-red-50 text-red-700 text-[11px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1 border border-red-200">
+                  <X className="w-3 h-3" /> Out of Stock
+                </span>
+              )}
             </div>
 
             {/* Title */}
@@ -143,17 +170,17 @@ export default function ProductQuickViewModal() {
             </div>
 
             {/* Size Selector if available */}
-            {quickViewProduct.sizes && (
+            {quickViewProduct.sizes && Array.isArray(quickViewProduct.sizes) && quickViewProduct.sizes.length > 0 && (
               <div className="space-y-2">
                 <label className="block text-xs font-bold text-gray-800 uppercase">Select Size:</label>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   {quickViewProduct.sizes.map((size) => (
                     <button
                       key={size}
                       onClick={() => setSelectedSize(size)}
-                      className={`w-9 h-9 rounded-md text-xs font-bold border transition-colors ${
+                      className={`min-w-9 h-9 px-3 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
                         selectedSize === size
-                          ? 'bg-[#701A23] text-white border-[#701A23]'
+                          ? 'bg-[#701A23] text-white border-[#701A23] shadow-sm'
                           : 'bg-white text-gray-800 border-gray-200 hover:border-[#701A23]'
                       }`}
                     >
@@ -188,17 +215,27 @@ export default function ProductQuickViewModal() {
           {/* Action Buttons */}
           <div className="space-y-2.5 pt-6 mt-4 border-t border-gray-100">
             <div className="flex items-center gap-3">
-              <button
-                onClick={handleAddToCart}
-                className="flex-1 bg-[#701A23] hover:bg-[#521117] text-white py-3 px-4 rounded-xl text-sm font-bold flex items-center justify-center gap-2 shadow-md transition-colors"
-              >
-                <ShoppingBag className="w-4 h-4" />
-                <span>Add {quantity} to Cart • ₹{(quickViewProduct.price * quantity).toLocaleString('en-IN')}</span>
-              </button>
+              {quickViewProduct.inStock !== false ? (
+                <button
+                  onClick={handleAddToCart}
+                  className="flex-1 bg-[#701A23] hover:bg-[#521117] text-white py-3 px-4 rounded-xl text-sm font-bold flex items-center justify-center gap-2 shadow-md transition-colors cursor-pointer"
+                >
+                  <ShoppingBag className="w-4 h-4" />
+                  <span>Add {quantity} to Cart • ₹{(quickViewProduct.price * quantity).toLocaleString('en-IN')}</span>
+                </button>
+              ) : (
+                <button
+                  disabled
+                  className="flex-1 bg-red-600 text-white py-3 px-4 rounded-xl text-sm font-bold flex items-center justify-center gap-2 shadow-md opacity-90 cursor-not-allowed"
+                >
+                  <X className="w-4 h-4" />
+                  <span>Out of Stock</span>
+                </button>
+              )}
 
               <button
                 onClick={() => toggleWishlist(quickViewProduct)}
-                className={`p-3 rounded-xl border transition-colors ${
+                className={`p-3 rounded-xl border transition-colors cursor-pointer ${
                   isLiked
                     ? 'bg-red-50 text-red-500 border-red-200'
                     : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'

@@ -1,8 +1,23 @@
-import React from 'react';
-import { categories } from '../data/categories';
+import React, { useState, useEffect } from 'react';
+import { categories as defaultCategories } from '../data/categories';
+import { getCategories } from '../services/supabase';
 import { ArrowRight, Sparkles } from 'lucide-react';
 
 export default function CategoriesPage({ setActivePage, onCategorySelect }) {
+  const [categoriesList, setCategoriesList] = useState(defaultCategories);
+
+  useEffect(() => {
+    async function loadLive() {
+      try {
+        const data = await getCategories();
+        if (data && data.length > 0) setCategoriesList(data);
+      } catch (err) {
+        console.warn('CategoriesPage load error:', err);
+      }
+    }
+    loadLive();
+  }, []);
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-10">
       {/* Header Banner */}
@@ -20,8 +35,8 @@ export default function CategoriesPage({ setActivePage, onCategorySelect }) {
       </div>
 
       {/* Categories Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {categories.map((cat, index) => (
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
+        {categoriesList.map((cat, index) => (
           <div
             key={cat.id}
             data-aos="fade-up"
