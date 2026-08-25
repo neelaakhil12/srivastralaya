@@ -53,12 +53,12 @@ export async function getStoreConfig() {
   try {
     const { data, error } = await supabase
       .from('categories')
-      .select('subcategories')
+      .select('description')
       .eq('id', '__sys_settings')
       .maybeSingle();
 
-    if (error || !data || !data.subcategories) return null;
-    return typeof data.subcategories === 'string' ? JSON.parse(data.subcategories) : data.subcategories;
+    if (error || !data || !data.description) return null;
+    return typeof data.description === 'string' ? JSON.parse(data.description) : data.description;
   } catch (err) {
     return null;
   }
@@ -66,12 +66,12 @@ export async function getStoreConfig() {
 
 export async function saveStoreConfig(configObj) {
   try {
-    const existing = await getStoreConfig() || {};
+    const existing = (await getStoreConfig()) || {};
     const merged = { ...existing, ...configObj };
     await supabase.from('categories').upsert([{
       id: '__sys_settings',
       name: '__sys_settings',
-      subcategories: merged
+      description: JSON.stringify(merged)
     }]);
   } catch (err) {
     console.warn('Supabase store config save warning:', err);

@@ -20,7 +20,8 @@ import {
   getHeroSliders,
   saveHeroSliders,
   getSliderSettings,
-  saveSliderSettings
+  saveSliderSettings,
+  syncSlidersFromCloud
 } from '../services/sliders';
 import { uploadToCloudinary } from '../services/cloudinary';
 
@@ -38,8 +39,8 @@ const CATEGORY_OPTIONS = [
 ];
 
 export default function AdminHeroSliders() {
-  const [sliders, setSliders] = useState([]);
-  const [settings, setSettings] = useState({ intervalSeconds: 2.5, autoPlay: true });
+  const [sliders, setSliders] = useState(getHeroSliders);
+  const [settings, setSettings] = useState(getSliderSettings);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -57,11 +58,17 @@ export default function AdminHeroSliders() {
 
   useEffect(() => {
     loadData();
+    window.addEventListener('sv_sliders_updated', loadData);
+    return () => window.removeEventListener('sv_sliders_updated', loadData);
   }, []);
 
-  const loadData = () => {
+  const loadData = async () => {
     setSliders(getHeroSliders());
     setSettings(getSliderSettings());
+    const cloudSliders = await syncSlidersFromCloud();
+    if (cloudSliders && Array.isArray(cloudSliders) && cloudSliders.length > 0) {
+      setSliders(cloudSliders);
+    }
   };
 
   const showSuccess = (msg) => {
