@@ -41,12 +41,12 @@ export function getHeroSliders() {
   return DEFAULT_SLIDERS;
 }
 
-export function saveHeroSliders(sliders) {
+export async function saveHeroSliders(sliders) {
   try {
     localStorage.setItem('sv_hero_sliders', JSON.stringify(sliders));
     window.dispatchEvent(new Event('sv_sliders_updated'));
     // Persist to Supabase cloud
-    saveStoreConfig({ sliders });
+    await saveStoreConfig({ sliders });
   } catch (e) {
     console.error('Failed to save hero sliders:', e);
   }
@@ -63,12 +63,12 @@ export function getSliderSettings() {
   };
 }
 
-export function saveSliderSettings(settings) {
+export async function saveSliderSettings(settings) {
   try {
     localStorage.setItem('sv_slider_settings', JSON.stringify(settings));
     window.dispatchEvent(new Event('sv_sliders_updated'));
     // Persist to Supabase cloud
-    saveStoreConfig({ sliderSettings: settings });
+    await saveStoreConfig({ sliderSettings: settings });
   } catch (e) {
     console.error('Failed to save slider settings:', e);
   }

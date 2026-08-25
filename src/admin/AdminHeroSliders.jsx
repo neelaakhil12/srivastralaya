@@ -100,28 +100,30 @@ export default function AdminHeroSliders() {
     if (!file) return;
 
     setUploadingImage(true);
-    try {
-      // 1. Try Cloudinary upload
-      const cloudUrl = await uploadToCloudinary(file, 'hero-sliders');
-      if (cloudUrl) {
-        setFormData(prev => ({ ...prev, image: cloudUrl }));
-        return;
-      }
-    } catch (err) {
-      console.warn('Cloudinary upload fallback to local reader:', err);
-    }
 
-    // 2. Local base64 fallback
+    // 1. Instant local preview via FileReader
     const reader = new FileReader();
-    reader.onload = (event) => {
-      setFormData(prev => ({ ...prev, image: event.target.result }));
-      setUploadingImage(false);
+    reader.onload = async (event) => {
+      const localDataUrl = event.target.result;
+      setFormData(prev => ({ ...prev, image: localDataUrl }));
+
+      // 2. Try Cloudinary upload in background
+      try {
+        const cloudUrl = await uploadToCloudinary(file, 'hero-sliders');
+        if (cloudUrl) {
+          setFormData(prev => ({ ...prev, image: cloudUrl }));
+        }
+      } catch (err) {
+        console.warn('Using local image payload:', err);
+      } finally {
+        setUploadingImage(false);
+      }
     };
+    reader.onerror = () => setUploadingImage(false);
     reader.readAsDataURL(file);
-    setUploadingImage(false);
   };
 
-  const handleSaveSlide = (e) => {
+  const handleSaveSlide = async (e) => {
     e.preventDefault();
     if (!formData.image) {
       alert('Please upload an image or provide an image URL for the slide.');
@@ -136,27 +138,27 @@ export default function AdminHeroSliders() {
     }
 
     setSliders(updated);
-    saveHeroSliders(updated);
     setIsModalOpen(false);
+    await saveHeroSliders(updated);
     showSuccess(editingIndex !== null ? 'Slide updated successfully!' : 'New hero slide added successfully!');
   };
 
-  const handleDeleteSlide = (index) => {
+  const handleDeleteSlide = async (index) => {
     if (!window.confirm(`Are you sure you want to delete Slide #${index + 1}?`)) return;
     const updated = sliders.filter((_, i) => i !== index);
     setSliders(updated);
-    saveHeroSliders(updated);
+    await saveHeroSliders(updated);
     showSuccess('Slide deleted.');
   };
 
-  const handleToggleActive = (index) => {
+  const handleToggleActive = async (index) => {
     const updated = [...sliders];
     updated[index].active = !updated[index].active;
     setSliders(updated);
-    saveHeroSliders(updated);
+    await saveHeroSliders(updated);
   };
 
-  const handleMove = (index, direction) => {
+  const handleMove = async (index, direction) => {
     const targetIndex = index + direction;
     if (targetIndex < 0 || targetIndex >= sliders.length) return;
     const updated = [...sliders];
@@ -164,8 +166,10 @@ export default function AdminHeroSliders() {
     updated[index] = updated[targetIndex];
     updated[targetIndex] = temp;
     setSliders(updated);
-    saveHeroSliders(updated);
+    await saveHeroSliders(updated);
   };
+
+
 
   const handleSaveSettings = (newSettings) => {
     setSettings(newSettings);
