@@ -92,3 +92,39 @@ CREATE POLICY "Allow public update orders" ON public.orders FOR UPDATE USING (tr
 CREATE POLICY "Allow public delete orders" ON public.orders FOR DELETE USING (true);
 
 CREATE POLICY "Allow public access admins" ON public.admins FOR ALL USING (true);
+
+-- =========================================================
+-- USER AUTH TABLES (for customer login)
+-- =========================================================
+
+-- 5. USERS TABLE
+CREATE TABLE IF NOT EXISTS public.users (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    name TEXT NOT NULL,
+    phone TEXT,
+    email TEXT UNIQUE,
+    google_id TEXT,
+    avatar_url TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 6. USER OTPs TABLE (short-lived, auto-cleaned)
+CREATE TABLE IF NOT EXISTS public.user_otps (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    email TEXT NOT NULL,
+    otp TEXT NOT NULL,
+    name TEXT,
+    phone TEXT,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Enable RLS
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_otps ENABLE ROW LEVEL SECURITY;
+
+-- Allow full public access (secured at app level)
+CREATE POLICY "Allow public access users" ON public.users FOR ALL USING (true);
+CREATE POLICY "Allow public access user_otps" ON public.user_otps FOR ALL USING (true);
+

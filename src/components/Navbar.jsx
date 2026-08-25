@@ -1,15 +1,21 @@
 import React, { useState } from 'react';
-import { Search, ShoppingBag, Heart, Menu, X, Phone, MapPin, ChevronRight, MessageCircle, User } from 'lucide-react';
+import { Search, ShoppingBag, Heart, Menu, X, Phone, ChevronRight, MessageCircle, User, LogIn } from 'lucide-react';
 import { InstagramIcon } from './BrandIcons';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useUI } from '../context/UIContext';
+import { useAuth } from '../context/AuthContext';
 
 export default function Navbar({ activePage, setActivePage, onCategorySelect }) {
-  const { totalItemsCount, setIsCartOpen, subtotal } = useCart();
+  const { totalItemsCount, setIsCartOpen, subtotal, standardShippingFee, freeShippingThreshold, enableFreeShipping, shippingConfig } = useCart();
   const { wishlistCount, setIsWishlistOpen } = useWishlist();
   const { setIsSearchOpen } = useUI();
+  const { user, isLoggedIn, openAuthModal } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const userInitials = isLoggedIn && user?.name
+    ? user.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
+    : null;
 
   const navLinks = [
     { id: 'home', type: 'page', label: 'HOME' },
@@ -45,10 +51,18 @@ export default function Navbar({ activePage, setActivePage, onCategorySelect }) 
       {/* Top Announcement Bar */}
       <div className="bg-[#701A23] text-white text-[11px] sm:text-xs py-1.5 px-3 border-b border-[#521117]">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5 font-medium tracking-wide truncate">
-            <span className="hidden sm:inline-block bg-[#D4AF37] text-[#701A23] text-[9px] uppercase font-bold px-1.5 py-0.5 rounded shrink-0">Special Offer</span>
-            <span className="truncate">🚚 FREE SHIPPING on orders above ₹2000</span>
-          </div>
+          {(standardShippingFee === 0 || (enableFreeShipping && freeShippingThreshold > 0)) ? (
+            <div className="flex items-center gap-1.5 font-medium tracking-wide truncate">
+              <span className="hidden sm:inline-block bg-[#D4AF37] text-[#701A23] text-[9px] uppercase font-bold px-1.5 py-0.5 rounded shrink-0">Special Offer</span>
+              <span className="truncate">
+                {standardShippingFee === 0
+                  ? '🚚 FREE SHIPPING on all orders across India!'
+                  : `🚚 FREE SHIPPING on orders above ₹${freeShippingThreshold.toLocaleString('en-IN')}`}
+              </span>
+            </div>
+          ) : (
+            <div className="hidden sm:block" />
+          )}
 
           <div className="flex items-center gap-2.5 text-gray-200 text-[11px] shrink-0">
             <a href="tel:9618093699" className="hover:text-[#D4AF37] transition-colors flex items-center gap-1">
@@ -58,8 +72,11 @@ export default function Navbar({ activePage, setActivePage, onCategorySelect }) 
             <span className="hidden sm:inline text-[#891E2A]">|</span>
             <div className="hidden sm:flex items-center gap-2">
               <span>Follow us:</span>
-              <a href="https://instagram.com" target="_blank" rel="noreferrer" className="hover:text-[#D4AF37] transition-colors" title="Instagram">
+              <a href="https://www.instagram.com/sri.vastralaya_?igsh=MTlmcXc4N20yamdmbA==" target="_blank" rel="noreferrer" className="hover:text-[#D4AF37] transition-colors" title="Instagram @sri.vastralaya_">
                 <InstagramIcon className="w-3.5 h-3.5" />
+              </a>
+              <a href="https://www.facebook.com/share/1HdpRQVuYP/" target="_blank" rel="noreferrer" className="hover:text-[#D4AF37] transition-colors" title="Facebook Page">
+                <span className="font-bold text-[11px] hover:underline">fb</span>
               </a>
               <a href="https://wa.me/919618093699" target="_blank" rel="noreferrer" className="hover:text-[#D4AF37] transition-colors" title="WhatsApp">
                 <MessageCircle className="w-3.5 h-3.5" />
@@ -132,16 +149,27 @@ export default function Navbar({ activePage, setActivePage, onCategorySelect }) 
               )}
             </button>
 
-            {/* User / Sign In */}
-            <button
-              onClick={() => {
-                alert("Sign in functionality coming soon!");
-              }}
-              className="p-2 text-gray-700 hover:text-[#701A23] hover:bg-gray-100 rounded-full transition-colors"
-              title="Sign In"
-            >
-              <User className="w-5 h-5" />
-            </button>
+            {/* User / Account */}
+            {isLoggedIn ? (
+              <button
+                onClick={() => {
+                  setActivePage('account');
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="w-9 h-9 rounded-full bg-gradient-to-br from-[#701A23] to-[#4A0E17] flex items-center justify-center text-white text-[11px] font-bold shadow-sm hover:shadow-md transition-shadow"
+                title={`My Account — ${user?.name}`}
+              >
+                {userInitials}
+              </button>
+            ) : (
+              <button
+                onClick={openAuthModal}
+                className="p-2 text-gray-700 hover:text-[#701A23] hover:bg-gray-100 rounded-full transition-colors"
+                title="Sign In"
+              >
+                <User className="w-5 h-5" />
+              </button>
+            )}
 
             {/* Cart Button with badge & total */}
             <button
@@ -213,7 +241,7 @@ export default function Navbar({ activePage, setActivePage, onCategorySelect }) 
                 </button>
               ))}
 
-              <div className="pt-2 border-t border-gray-100 mt-2">
+              <div className="pt-2 border-t border-gray-100 mt-2 space-y-1">
                 <button
                   onClick={() => {
                     setMobileMenuOpen(false);
@@ -231,6 +259,39 @@ export default function Navbar({ activePage, setActivePage, onCategorySelect }) 
                     </span>
                   )}
                 </button>
+
+                {isLoggedIn ? (
+                  <button
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      setActivePage('account');
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className="w-full flex items-center justify-between px-4 py-3 rounded-lg text-left text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="w-5 h-5 rounded-full bg-[#701A23] flex items-center justify-center text-white text-[9px] font-bold">
+                        {userInitials}
+                      </div>
+                      <span>My Account</span>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-gray-400" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      openAuthModal();
+                    }}
+                    className="w-full flex items-center justify-between px-4 py-3 rounded-lg text-left text-sm font-semibold text-[#701A23] hover:bg-[#FAF0F1] transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <LogIn className="w-5 h-5 text-[#701A23]" />
+                      <span>Sign In / Register</span>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-[#701A23]" />
+                  </button>
+                )}
               </div>
 
               <div className="pt-4 border-t border-gray-100 mt-4 px-4 space-y-3 text-xs text-gray-600">

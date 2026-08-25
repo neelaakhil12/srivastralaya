@@ -5,6 +5,7 @@ import 'aos/dist/aos.css';
 import { CartProvider } from './context/CartContext';
 import { WishlistProvider } from './context/WishlistContext';
 import { UIProvider, useUI } from './context/UIContext';
+import { AuthProvider } from './context/AuthContext';
 
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
@@ -14,12 +15,14 @@ import CartDrawer from './components/CartDrawer';
 import WishlistDrawer from './components/WishlistDrawer';
 import SearchModal from './components/SearchModal';
 import Toast from './components/Toast';
+import AuthModal from './components/AuthModal';
 
 import HomePage from './pages/HomePage';
 import CategoriesPage from './pages/CategoriesPage';
 import ProductsPage from './pages/ProductsPage';
 import OurStoryPage from './pages/OurStoryPage';
 import ContactPage from './pages/ContactPage';
+import AccountPage from './pages/AccountPage';
 import SplashScreen from './components/SplashScreen';
 import AdminApp from './admin/AdminApp';
 
@@ -134,6 +137,9 @@ function AppContent() {
         {activePage === 'contact' && (
           <ContactPage />
         )}
+        {activePage === 'account' && (
+          <AccountPage setActivePage={setActivePage} />
+        )}
       </main>
 
       {/* Global Interactive Modals & Drawers */}
@@ -141,6 +147,7 @@ function AppContent() {
       <CartDrawer setActivePage={setActivePage} />
       <WishlistDrawer setActivePage={setActivePage} />
       <SearchModal setActivePage={setActivePage} />
+      <AuthModal />
 
       {/* Permanent Floating WhatsApp Action Widget */}
       <WhatsAppFloatingButton />
@@ -159,7 +166,9 @@ export default function App() {
     <CartProvider>
       <WishlistProvider>
         <UIProvider>
-          <AppContent />
+          <AuthProvider>
+            <AppContent />
+          </AuthProvider>
         </UIProvider>
       </WishlistProvider>
     </CartProvider>

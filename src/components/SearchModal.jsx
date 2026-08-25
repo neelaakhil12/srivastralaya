@@ -7,13 +7,15 @@ import { getProducts } from '../services/supabase';
 export default function SearchModal({ setActivePage, onProductSelect }) {
   const { isSearchOpen, setIsSearchOpen, openQuickView } = useUI();
   const [query, setQuery] = useState('');
-  const [productsList, setProductsList] = useState(defaultProducts);
+  const [productsList, setProductsList] = useState([]);
 
   useEffect(() => {
     if (isSearchOpen) {
       getProducts().then(prods => {
-        if (prods && prods.length > 0) setProductsList(prods);
-      }).catch(() => {});
+        setProductsList(Array.isArray(prods) ? prods : []);
+      }).catch(() => {
+        setProductsList([]);
+      });
     }
   }, [isSearchOpen]);
 

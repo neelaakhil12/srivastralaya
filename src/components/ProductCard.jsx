@@ -5,11 +5,17 @@ import { useWishlist } from '../context/WishlistContext';
 import { useUI } from '../context/UIContext';
 
 export default function ProductCard({ product }) {
-  const { addToCart } = useCart();
-  const { toggleWishlist, isInWishlist } = useWishlist();
   const { openQuickView } = useUI();
+  const { wishlistItems, toggleWishlist } = useWishlist();
+  const { addToCart } = useCart();
+  const isLiked = wishlistItems.some((item) => item.id === product.id);
 
-  const isLiked = isInWishlist(product.id);
+  // Check if product has tiered size pricing
+  const sizePriceValues = (product.sizePrices && typeof product.sizePrices === 'object')
+    ? Object.values(product.sizePrices).map(Number).filter(v => !isNaN(v) && v > 0)
+    : [];
+  const minPrice = sizePriceValues.length > 0 ? Math.min(...sizePriceValues, product.price) : product.price;
+  const hasMultiplePrices = sizePriceValues.length > 1 && Math.min(...sizePriceValues) !== Math.max(...sizePriceValues);
 
   const handleOrderWhatsApp = (e) => {
     e.stopPropagation();
@@ -107,8 +113,11 @@ export default function ProductCard({ product }) {
         
         {/* Pricing */}
         <div className="flex items-center gap-1.5 mt-1">
+          {hasMultiplePrices && (
+            <span className="text-[11px] font-semibold text-gray-500">From</span>
+          )}
           <span className="text-base sm:text-lg font-bold text-gray-900">
-            ₹{product.price.toLocaleString('en-IN')}
+            ₹{minPrice.toLocaleString('en-IN')}
           </span>
           {product.oldPrice && (
             <span className="text-xs text-gray-400 line-through">
@@ -123,10 +132,28 @@ export default function ProductCard({ product }) {
         </div>
         
         {/* Color Swatches */}
-        <div className="flex gap-1.5 mt-1">
-          <div className="w-3 h-3 rounded-full bg-black border border-gray-300"></div>
-          <div className="w-3 h-3 rounded-full bg-[#f5f5dc] border border-gray-300"></div>
-        </div>
+        {product.colors && Array.isArray(product.colors) && product.colors.length > 0 ? (
+          <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+            {product.colors.slice(0, 5).map((col, idx) => (
+              <span
+                key={idx}
+                className="w-3 h-3 rounded-full border border-gray-300 shadow-2xs inline-block shrink-0"
+                style={{ backgroundColor: col.hex || '#000' }}
+                title={col.name}
+              />
+            ))}
+            {product.colors.length > 5 && (
+              <span className="text-[10px] text-gray-500 font-semibold leading-none">
+                +{product.colors.length - 5}
+              </span>
+            )}
+          </div>
+        ) : (
+          <div className="flex gap-1.5 mt-1">
+            <div className="w-3 h-3 rounded-full bg-black border border-gray-300"></div>
+            <div className="w-3 h-3 rounded-full bg-[#f5f5dc] border border-gray-300"></div>
+          </div>
+        )}
       </div>
     </div>
   );

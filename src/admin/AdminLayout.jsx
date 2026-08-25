@@ -4,6 +4,8 @@ import {
   Layers,
   Package,
   ShoppingBag,
+  Truck,
+  Sliders,
   LogOut,
   ExternalLink,
   Menu,
@@ -16,6 +18,8 @@ import AdminDashboard from './AdminDashboard';
 import AdminCategories from './AdminCategories';
 import AdminProducts from './AdminProducts';
 import AdminOrders from './AdminOrders';
+import AdminShipping from './AdminShipping';
+import AdminHeroSliders from './AdminHeroSliders';
 import { clearAdminSession } from '../services/adminAuth';
 
 export default function AdminLayout({ adminUser, onLogout, onNavigateToStore }) {
@@ -33,9 +37,11 @@ export default function AdminLayout({ adminUser, onLogout, onNavigateToStore }) 
 
   const navItems = [
     { id: 'dashboard', label: 'Dashboard Overview', icon: LayoutDashboard },
+    { id: 'sliders', label: 'Hero Banners & Sliders', icon: Sliders },
     { id: 'products', label: 'Products & Catalogue', icon: Package },
     { id: 'categories', label: 'Categories & Weaves', icon: Layers },
     { id: 'orders', label: 'Customer Orders', icon: ShoppingBag },
+    { id: 'shipping', label: 'Shipping & Delivery Rates', icon: Truck },
   ];
 
   return (
@@ -203,7 +209,15 @@ export default function AdminLayout({ adminUser, onLogout, onNavigateToStore }) 
           )}
 
           {activeTab === 'orders' && (
-            <AdminOrders />
+            <AdminOrders onNavigateShipping={() => setActiveTab('shipping')} />
+          )}
+
+          {activeTab === 'sliders' && (
+            <AdminHeroSliders />
+          )}
+
+          {activeTab === 'shipping' && (
+            <AdminShipping />
           )}
         </main>
       </div>

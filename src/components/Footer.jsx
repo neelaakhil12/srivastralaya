@@ -24,16 +24,56 @@ export default function Footer({ setActivePage, onCategorySelect }) {
             <p className="text-gray-300 text-xs sm:text-sm leading-relaxed">
               Bringing you timeless sarees, jewellery, and fashion accessories crafted with love, tradition, and affordability. Owned with pride by <span className="text-[#D4AF37] font-semibold">Pranu & Siri</span>.
             </p>
-            <div className="flex items-center gap-3 pt-2">
-              <a href="https://instagram.com" target="_blank" rel="noreferrer" className="w-8 h-8 rounded-full bg-[#521117] flex items-center justify-center text-gray-300 hover:text-white hover:bg-[#701A23] transition-colors">
-                <InstagramIcon className="w-4 h-4" />
-              </a>
-              <a href="https://facebook.com" target="_blank" rel="noreferrer" className="w-8 h-8 rounded-full bg-[#521117] flex items-center justify-center text-gray-300 hover:text-white hover:bg-[#701A23] transition-colors">
-                <FacebookIcon className="w-4 h-4" />
-              </a>
-              <a href="https://wa.me/919618093699" target="_blank" rel="noreferrer" className="w-8 h-8 rounded-full bg-[#521117] flex items-center justify-center text-gray-300 hover:text-white hover:bg-[#25D366] transition-colors">
-                <MessageCircle className="w-4 h-4" />
-              </a>
+            {/* Follow Us Social Media Buttons */}
+            <div className="pt-2 space-y-2">
+              <p className="text-[11px] uppercase font-bold tracking-widest text-[#D4AF37]">
+                FOLLOW US
+              </p>
+              <div className="flex flex-col gap-2">
+                {/* Instagram 1 */}
+                <a
+                  href="https://www.instagram.com/sri.vastralaya_?igsh=MTlmcXc4N20yamdmbA=="
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-[#521117] hover:bg-[#E1306C] text-gray-200 hover:text-white transition-all text-xs font-semibold border border-[#701A23] shadow-xs group"
+                >
+                  <InstagramIcon className="w-4 h-4 text-[#D4AF37] group-hover:text-white transition-colors shrink-0" />
+                  <span className="truncate">Instagram (@sri.vastralaya_)</span>
+                </a>
+
+                {/* Instagram 2 */}
+                <a
+                  href="https://www.instagram.com/_sv_collections07?igsh=NTV0aXMyNWllN29x"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-[#521117] hover:bg-[#E1306C] text-gray-200 hover:text-white transition-all text-xs font-semibold border border-[#701A23] shadow-xs group"
+                >
+                  <InstagramIcon className="w-4 h-4 text-[#D4AF37] group-hover:text-white transition-colors shrink-0" />
+                  <span className="truncate">Instagram (@_sv_collections07)</span>
+                </a>
+
+                {/* Facebook */}
+                <a
+                  href="https://www.facebook.com/share/1HdpRQVuYP/"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-[#521117] hover:bg-[#1877F2] text-gray-200 hover:text-white transition-all text-xs font-semibold border border-[#701A23] shadow-xs group"
+                >
+                  <FacebookIcon className="w-4 h-4 text-[#D4AF37] group-hover:text-white transition-colors shrink-0" />
+                  <span>Facebook Page</span>
+                </a>
+
+                {/* WhatsApp */}
+                <a
+                  href="https://wa.me/919618093699"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-[#521117] hover:bg-[#25D366] text-gray-200 hover:text-white transition-all text-xs font-semibold border border-[#701A23] shadow-xs group"
+                >
+                  <MessageCircle className="w-4 h-4 text-[#25D366] group-hover:text-white transition-colors shrink-0" />
+                  <span>WhatsApp Chat</span>
+                </a>
+              </div>
             </div>
           </div>
 

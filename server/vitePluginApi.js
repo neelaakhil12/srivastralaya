@@ -15,6 +15,10 @@ const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL ||
 const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16cm1oZ2xsYWdsdndzbXJiaGJ2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY5NDI5NjIsImV4cCI6MjEwMjUxODk2Mn0.Si8KYSTrXjiNUAT6iRH58akn42nGPil2q7Jb9puIcP0';
 const supabase = supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
 
+// Razorpay credentials
+const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || process.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_TTxuY6jG2BTZS5';
+const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || 'gbrnL9PsaDpECuwqNGlX2u1F';
+
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME || 'k1vemtdl',
   api_key: process.env.CLOUDINARY_API_KEY || '111466383194774',
@@ -388,6 +392,338 @@ export function viteApiPlugin() {
             return sendJson(res, 200, { success: true, message: `Test email sent to ${recipient}`, messageId: info.messageId });
           } catch (err) {
             return sendJson(res, 500, { success: false, message: 'SMTP Test failed: ' + err.message });
+          }
+        }
+
+        // ============================================================
+        // USER AUTH ROUTES
+        // ============================================================
+
+        // 7. Send OTP (email)
+        if (url === '/api/user/send-otp' && req.method === 'POST') {
+          try {
+            const body = await parseBody(req);
+            const { name, phone, email } = body;
+
+            if (!name || !phone || !email) {
+              return sendJson(res, 400, { success: false, message: 'Name, phone and email are required' });
+            }
+
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+              return sendJson(res, 400, { success: false, message: 'Please enter a valid email address' });
+            }
+
+            // Generate 6-digit OTP
+            const otp = Math.floor(100000 + Math.random() * 900000).toString();
+            const expiresAt = Date.now() + 5 * 60 * 1000; // 5 minutes
+
+            // Store OTP in Supabase (upsert by email)
+            try {
+              await supabase.from('user_otps').delete().eq('email', email.toLowerCase());
+              await supabase.from('user_otps').insert({
+                email: email.toLowerCase(),
+                otp,
+                name,
+                phone,
+                expires_at: new Date(expiresAt).toISOString()
+              });
+            } catch (dbErr) {
+              console.warn('Supabase OTP store warn:', dbErr.message);
+              // Fallback: store in-memory
+              if (!global._otpStore) global._otpStore = {};
+              global._otpStore[email.toLowerCase()] = { otp, name, phone, expiresAt };
+            }
+
+            // Send OTP email
+            const mailOptions = {
+              from: process.env.SMTP_FROM || `"Sri Vastralaya" <${process.env.SMTP_USER}>`,
+              to: email,
+              subject: '🔐 Your Sri Vastralaya Login OTP',
+              html: `
+                <div style="font-family:'Segoe UI',sans-serif;max-width:520px;margin:0 auto;background:#fff;border:1px solid #f0e6e6;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.08);">
+                  <div style="background:linear-gradient(135deg,#701A23,#4A0E17);padding:28px 24px;text-align:center;">
+                    <h1 style="margin:0;font-size:26px;color:#D4AF37;letter-spacing:1px;">SRI VASTRALAYA</h1>
+                    <p style="margin:6px 0 0;font-size:13px;color:#fff;opacity:0.85;">Your Trusted Fashion Destination</p>
+                  </div>
+                  <div style="padding:32px 28px;">
+                    <p style="font-size:15px;color:#333;margin-top:0;">Hello <strong>${name}</strong>,</p>
+                    <p style="font-size:14px;color:#555;line-height:1.6;">Use the OTP below to securely sign in to your Sri Vastralaya account. This code is valid for <strong>5 minutes</strong>.</p>
+                    <div style="text-align:center;margin:28px 0;">
+                      <div style="display:inline-block;background:linear-gradient(135deg,#FAF0F1,#fff);border:2px dashed #701A23;border-radius:12px;padding:20px 40px;">
+                        <p style="margin:0;font-size:13px;color:#701A23;font-weight:600;letter-spacing:1px;text-transform:uppercase;">Your OTP</p>
+                        <p style="margin:8px 0 0;font-size:42px;font-weight:900;color:#701A23;letter-spacing:10px;">${otp}</p>
+                      </div>
+                    </div>
+                    <p style="font-size:13px;color:#888;text-align:center;">⚠️ Never share this OTP with anyone. Sri Vastralaya will never ask for your OTP.</p>
+                  </div>
+                  <div style="background:#fcf8f8;padding:16px;text-align:center;font-size:12px;color:#999;border-top:1px solid #f0e6e6;">
+                    <p style="margin:0;font-weight:600;color:#555;">Sri Vastralaya — Traditional &amp; Modern Fashion</p>
+                    <p style="margin:4px 0 0;">Hyderabad, Telangana | srivastralaya6@gmail.com</p>
+                  </div>
+                </div>
+              `
+            };
+
+            await transporter.sendMail(mailOptions);
+
+            return sendJson(res, 200, { success: true, message: `OTP sent to ${email}` });
+          } catch (err) {
+            console.error('Send OTP error:', err);
+            return sendJson(res, 500, { success: false, message: 'Failed to send OTP: ' + err.message });
+          }
+        }
+
+        // 8. Verify OTP & login/register user
+        if (url === '/api/user/verify-otp' && req.method === 'POST') {
+          try {
+            const body = await parseBody(req);
+            const { email, otp } = body;
+
+            if (!email || !otp) {
+              return sendJson(res, 400, { success: false, message: 'Email and OTP are required' });
+            }
+
+            const cleanEmail = email.toLowerCase();
+            let storedName = '';
+            let storedPhone = '';
+            let otpValid = false;
+
+            // Check Supabase first
+            try {
+              const { data: otpRecord } = await supabase
+                .from('user_otps')
+                .select('*')
+                .eq('email', cleanEmail)
+                .single();
+
+              if (otpRecord) {
+                const expired = new Date(otpRecord.expires_at) < new Date();
+                if (!expired && otpRecord.otp === otp) {
+                  otpValid = true;
+                  storedName = otpRecord.name;
+                  storedPhone = otpRecord.phone;
+                  // Delete used OTP
+                  await supabase.from('user_otps').delete().eq('email', cleanEmail);
+                }
+              }
+            } catch (dbErr) {
+              // Fallback to in-memory
+              const memOtp = global._otpStore && global._otpStore[cleanEmail];
+              if (memOtp && memOtp.otp === otp && memOtp.expiresAt > Date.now()) {
+                otpValid = true;
+                storedName = memOtp.name;
+                storedPhone = memOtp.phone;
+                delete global._otpStore[cleanEmail];
+              }
+            }
+
+            if (!otpValid) {
+              return sendJson(res, 401, { success: false, message: 'Invalid or expired OTP. Please try again.' });
+            }
+
+            // Upsert user record
+            let userRecord = null;
+            try {
+              const { data: existingUser } = await supabase
+                .from('users')
+                .select('*')
+                .eq('email', cleanEmail)
+                .single();
+
+              if (existingUser) {
+                userRecord = existingUser;
+                // Update name/phone if changed
+                await supabase.from('users').update({ name: storedName, phone: storedPhone }).eq('email', cleanEmail);
+                userRecord.name = storedName;
+                userRecord.phone = storedPhone;
+              } else {
+                const { data: newUser } = await supabase.from('users').insert({
+                  name: storedName,
+                  phone: storedPhone,
+                  email: cleanEmail
+                }).select().single();
+                userRecord = newUser;
+              }
+            } catch (dbErr) {
+              console.warn('User upsert warn:', dbErr.message);
+              userRecord = { id: `local-${Date.now()}`, name: storedName, phone: storedPhone, email: cleanEmail };
+            }
+
+            // Create a simple session token (base64 encoded JSON — no JWT dependency needed)
+            const tokenPayload = { id: userRecord?.id, email: cleanEmail, name: storedName, phone: storedPhone, iat: Date.now() };
+            const token = Buffer.from(JSON.stringify(tokenPayload)).toString('base64');
+
+            return sendJson(res, 200, {
+              success: true,
+              message: 'Login successful',
+              token,
+              user: {
+                id: userRecord?.id,
+                name: storedName,
+                phone: storedPhone,
+                email: cleanEmail,
+                avatar_url: userRecord?.avatar_url || null
+              }
+            });
+          } catch (err) {
+            console.error('Verify OTP error:', err);
+            return sendJson(res, 500, { success: false, message: err.message });
+          }
+        }
+
+        // 9. Get user orders (by email or phone)
+        if (url.startsWith('/api/user/orders') && req.method === 'GET') {
+          try {
+            const urlObj = new URL(req.url, 'http://localhost');
+            const email = urlObj.searchParams.get('email') || '';
+            const phone = urlObj.searchParams.get('phone') || '';
+
+            if (!email && !phone) {
+              return sendJson(res, 400, { success: false, message: 'Email or phone required' });
+            }
+
+            let query = supabase.from('orders').select('*').order('created_at', { ascending: false });
+
+            if (email && phone) {
+              query = query.or(`customer_email.ilike.${email},customer_phone.eq.${phone}`);
+            } else if (email) {
+              query = query.ilike('customer_email', email);
+            } else {
+              query = query.eq('customer_phone', phone);
+            }
+
+            const { data, error } = await query;
+            if (error) throw error;
+
+            const orders = (data || []).map(item => ({
+              id: item.id,
+              customerName: item.customer_name,
+              customerPhone: item.customer_phone,
+              customerEmail: item.customer_email || '',
+              customerAddress: item.customer_address || '',
+              items: Array.isArray(item.items) ? item.items : (item.items ? JSON.parse(item.items) : []),
+              subtotal: Number(item.subtotal) || 0,
+              discount: Number(item.discount) || 0,
+              shipping: Number(item.shipping) || 0,
+              total: Number(item.total) || 0,
+              status: item.status || 'Pending',
+              paymentMethod: item.payment_method || 'COD',
+              notes: item.notes || '',
+              createdAt: item.created_at
+            }));
+
+            return sendJson(res, 200, { success: true, orders });
+          } catch (err) {
+            console.error('User orders fetch error:', err);
+            return sendJson(res, 500, { success: false, message: err.message });
+          }
+        }
+
+        // ============================================================
+        // RAZORPAY PAYMENT ROUTES
+        // ============================================================
+
+        // 10. Create Razorpay Order
+        if (url === '/api/razorpay/create-order' && req.method === 'POST') {
+          try {
+            const body = await parseBody(req);
+            const { amount, currency = 'INR', receipt, notes = {} } = body;
+
+            if (!amount || amount <= 0) {
+              return sendJson(res, 400, { success: false, message: 'Valid amount is required' });
+            }
+
+            // Call Razorpay Orders API
+            const authHeader = 'Basic ' + Buffer.from(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`).toString('base64');
+            const razorpayRes = await fetch('https://api.razorpay.com/v1/orders', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': authHeader
+              },
+              body: JSON.stringify({
+                amount: Math.round(amount * 100), // paise
+                currency,
+                receipt: receipt || `rcpt_${Date.now()}`,
+                notes
+              })
+            });
+
+            const razorpayData = await razorpayRes.json();
+
+            if (!razorpayRes.ok) {
+              return sendJson(res, 400, { success: false, message: razorpayData.error?.description || 'Failed to create Razorpay order' });
+            }
+
+            return sendJson(res, 200, {
+              success: true,
+              orderId: razorpayData.id,
+              amount: razorpayData.amount,
+              currency: razorpayData.currency,
+              keyId: RAZORPAY_KEY_ID
+            });
+          } catch (err) {
+            console.error('Razorpay create-order error:', err);
+            return sendJson(res, 500, { success: false, message: err.message });
+          }
+        }
+
+        // 11. Verify Razorpay Payment Signature
+        if (url === '/api/razorpay/verify-payment' && req.method === 'POST') {
+          try {
+            const body = await parseBody(req);
+            const { razorpay_order_id, razorpay_payment_id, razorpay_signature, orderData } = body;
+
+            if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+              return sendJson(res, 400, { success: false, message: 'Missing payment verification fields' });
+            }
+
+            // Verify HMAC SHA256 signature
+            const expectedSignature = crypto
+              .createHmac('sha256', RAZORPAY_KEY_SECRET)
+              .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+              .digest('hex');
+
+            if (expectedSignature !== razorpay_signature) {
+              return sendJson(res, 400, { success: false, message: 'Payment verification failed. Invalid signature.' });
+            }
+
+            // Save verified order to Supabase
+            let savedOrder = null;
+            if (orderData && supabase) {
+              try {
+                const payload = {
+                  id: orderData.id || `ORD-${Date.now().toString().slice(-8)}`,
+                  customer_name: orderData.customerName || 'Customer',
+                  customer_phone: orderData.customerPhone || '',
+                  customer_email: orderData.customerEmail || '',
+                  customer_address: orderData.customerAddress || '',
+                  items: orderData.items || [],
+                  subtotal: Number(orderData.subtotal) || 0,
+                  discount: Number(orderData.discount) || 0,
+                  shipping: Number(orderData.shipping) || 0,
+                  total: Number(orderData.total) || 0,
+                  status: 'Processing',
+                  payment_method: `Razorpay | ${razorpay_payment_id}`,
+                  notes: `Razorpay Order: ${razorpay_order_id}`
+                };
+                const { data } = await supabase.from('orders').insert([payload]).select().single();
+                savedOrder = data;
+              } catch (dbErr) {
+                console.warn('Order save warning:', dbErr.message);
+              }
+            }
+
+            return sendJson(res, 200, {
+              success: true,
+              message: 'Payment verified successfully!',
+              paymentId: razorpay_payment_id,
+              orderId: savedOrder?.id || orderData?.id
+            });
+          } catch (err) {
+            console.error('Razorpay verify-payment error:', err);
+            return sendJson(res, 500, { success: false, message: err.message });
           }
         }
 

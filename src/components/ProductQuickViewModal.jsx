@@ -1,17 +1,19 @@
 import React, { useState } from 'react';
-import { X, Star, Heart, ShoppingBag, MessageCircle, Check, ShieldCheck, Truck } from 'lucide-react';
+import { X, Star, Heart, ShoppingBag, CreditCard, Check, ShieldCheck, Truck } from 'lucide-react';
 import { useUI } from '../context/UIContext';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 
 export default function ProductQuickViewModal() {
   const { quickViewProduct, closeQuickView } = useUI();
-  const { addToCart } = useCart();
+  const { addToCart, setIsCartOpen } = useCart();
   const { toggleWishlist, isInWishlist } = useWishlist();
 
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedSize, setSelectedSize] = useState(null);
+  const [selectedColor, setSelectedColor] = useState(null);
+  const [colorImage, setColorImage] = useState(null);
 
   React.useEffect(() => {
     if (quickViewProduct) {
@@ -21,6 +23,14 @@ export default function ProductQuickViewModal() {
         setSelectedSize(quickViewProduct.sizes[0]);
       } else {
         setSelectedSize(null);
+      }
+      if (quickViewProduct.colors && Array.isArray(quickViewProduct.colors) && quickViewProduct.colors.length > 0) {
+        const firstCol = quickViewProduct.colors[0];
+        setSelectedColor(firstCol.name);
+        setColorImage(firstCol.image || null);
+      } else {
+        setSelectedColor(null);
+        setColorImage(null);
       }
     }
   }, [quickViewProduct]);
@@ -32,14 +42,39 @@ export default function ProductQuickViewModal() {
     ? quickViewProduct.images
     : [quickViewProduct.image];
 
+  // Dynamic price calculation based on selected size
+  const currentPrice = (quickViewProduct.sizePrices && selectedSize && quickViewProduct.sizePrices[selectedSize] !== undefined && quickViewProduct.sizePrices[selectedSize] !== '')
+    ? Number(quickViewProduct.sizePrices[selectedSize])
+    : Number(quickViewProduct.price);
+
+  const handleSelectColor = (col) => {
+    setSelectedColor(col.name);
+    if (col.image) {
+      setColorImage(col.image);
+    }
+  };
+
   const handleAddToCart = () => {
-    addToCart(quickViewProduct, quantity, null, selectedSize);
+    const activeImg = colorImage || images[selectedImage] || quickViewProduct.image;
+    addToCart(
+      { ...quickViewProduct, image: activeImg, price: currentPrice },
+      quantity,
+      selectedColor,
+      selectedSize
+    );
     closeQuickView();
   };
 
-  const handleBuyWhatsApp = () => {
-    const msg = `Hello Sri Vastralaya, I would like to order "${quickViewProduct.name}" (Qty: ${quantity}, Price: ₹${quickViewProduct.price * quantity}). Please guide me with payment and delivery.`;
-    window.open(`https://wa.me/919618093699?text=${encodeURIComponent(msg)}`, '_blank');
+  const handleBuyNow = () => {
+    const activeImg = colorImage || images[selectedImage] || quickViewProduct.image;
+    addToCart(
+      { ...quickViewProduct, image: activeImg, price: currentPrice },
+      quantity,
+      selectedColor,
+      selectedSize
+    );
+    closeQuickView();
+    if (setIsCartOpen) setIsCartOpen(true);
   };
 
   return (
@@ -65,7 +100,7 @@ export default function ProductQuickViewModal() {
         <div className="md:w-1/2 p-4 sm:p-6 bg-gray-50 flex flex-col justify-between">
           <div className="relative aspect-4/5 rounded-2xl overflow-hidden bg-white shadow-xs border border-gray-100 flex items-center justify-center mb-4">
             <img
-              src={images[selectedImage] || quickViewProduct.image}
+              src={colorImage || images[selectedImage] || quickViewProduct.image}
               alt={quickViewProduct.name}
               className={`w-full h-full object-contain p-2 transition-all duration-300 ${
                 quickViewProduct.inStock === false ? 'blur-[3px] opacity-55 grayscale-[30%]' : ''
@@ -74,6 +109,11 @@ export default function ProductQuickViewModal() {
             {quickViewProduct.discount && quickViewProduct.inStock !== false && (
               <span className="absolute top-3 left-3 bg-[#D4AF37] text-[#701A23] font-bold text-xs px-2.5 py-1 rounded-md shadow-xs">
                 {quickViewProduct.discount}
+              </span>
+            )}
+            {selectedColor && (
+              <span className="absolute bottom-3 left-3 bg-black/75 backdrop-blur-xs text-white font-semibold text-[10px] px-2.5 py-1 rounded-md shadow-sm">
+                Color: {selectedColor}
               </span>
             )}
             {quickViewProduct.inStock === false && (
@@ -91,9 +131,12 @@ export default function ProductQuickViewModal() {
               {images.map((img, idx) => (
                 <button
                   key={idx}
-                  onClick={() => setSelectedImage(idx)}
+                  onClick={() => {
+                    setSelectedImage(idx);
+                    setColorImage(null);
+                  }}
                   className={`w-16 h-16 rounded-xl overflow-hidden border-2 bg-white p-1 flex items-center justify-center transition-all shrink-0 cursor-pointer ${
-                    selectedImage === idx ? 'border-[#701A23] shadow-xs' : 'border-gray-200 opacity-70 hover:opacity-100'
+                    !colorImage && selectedImage === idx ? 'border-[#701A23] shadow-xs' : 'border-gray-200 opacity-70 hover:opacity-100'
                   }`}
                 >
                   <img src={img} alt="" className="w-full h-full object-contain" />
@@ -141,7 +184,7 @@ export default function ProductQuickViewModal() {
             {/* Pricing */}
             <div className="flex items-baseline gap-3 py-2 border-y border-gray-100">
               <span className="text-2xl font-extrabold text-[#701A23]">
-                ₹{quickViewProduct.price.toLocaleString('en-IN')}
+                ₹{currentPrice.toLocaleString('en-IN')}
               </span>
               {quickViewProduct.oldPrice && (
                 <span className="text-base text-gray-400 line-through">
@@ -156,37 +199,93 @@ export default function ProductQuickViewModal() {
               {quickViewProduct.description}
             </p>
 
-            {/* Specifications */}
-            <div className="bg-[#FAF8F5] p-3 rounded-lg text-xs space-y-1.5 text-gray-700 border border-gray-100">
-              {quickViewProduct.fabric && (
-                <p><strong className="text-gray-900">Fabric:</strong> {quickViewProduct.fabric}</p>
-              )}
-              {quickViewProduct.material && (
-                <p><strong className="text-gray-900">Material:</strong> {quickViewProduct.material}</p>
-              )}
-              {quickViewProduct.length && (
-                <p><strong className="text-gray-900">Dimensions:</strong> {quickViewProduct.length}</p>
-              )}
-            </div>
+            {/* Point-Wise Specifications */}
+            {((Array.isArray(quickViewProduct.specifications) && quickViewProduct.specifications.length > 0) || quickViewProduct.fabric || quickViewProduct.length) && (
+              <div className="bg-[#FAF8F5] p-3.5 rounded-xl text-xs space-y-2 text-gray-700 border border-gray-100">
+                <span className="block font-bold text-gray-900 uppercase tracking-wide text-[11px]">
+                  Product Specifications:
+                </span>
+                <ul className="space-y-1.5 pl-0.5">
+                  {(Array.isArray(quickViewProduct.specifications) && quickViewProduct.specifications.length > 0
+                    ? quickViewProduct.specifications
+                    : [quickViewProduct.fabric && `Fabric: ${quickViewProduct.fabric}`, quickViewProduct.length && `Dimensions: ${quickViewProduct.length}`, quickViewProduct.material && `Material: ${quickViewProduct.material}`].filter(Boolean)
+                  ).map((spec, idx) => (
+                    <li key={idx} className="flex items-start gap-2 text-gray-700 font-medium">
+                      <span className="text-[#701A23] font-bold text-sm leading-none mt-0.5">•</span>
+                      <span>{spec.replace(/^[•\-*]\s*/, '')}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Color Selector if available */}
+            {quickViewProduct.colors && Array.isArray(quickViewProduct.colors) && quickViewProduct.colors.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-gray-800 uppercase">
+                    Select Color: {selectedColor && <span className="text-[#701A23] font-bold">({selectedColor})</span>}
+                  </label>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {quickViewProduct.colors.map((color) => {
+                    const isSelected = selectedColor === color.name;
+                    return (
+                      <button
+                        key={color.name}
+                        onClick={() => handleSelectColor(color)}
+                        className={`min-h-9 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer flex items-center gap-2 ${
+                          isSelected
+                            ? 'bg-[#701A23] text-white border-[#701A23] shadow-sm ring-2 ring-[#701A23]/20'
+                            : 'bg-white text-gray-800 border-gray-200 hover:border-[#701A23]'
+                        }`}
+                      >
+                        <span
+                          className="w-3.5 h-3.5 rounded-full border border-gray-300 shrink-0 shadow-xs"
+                          style={{ backgroundColor: color.hex || '#000' }}
+                        />
+                        <span>{color.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Size Selector if available */}
             {quickViewProduct.sizes && Array.isArray(quickViewProduct.sizes) && quickViewProduct.sizes.length > 0 && (
               <div className="space-y-2">
-                <label className="block text-xs font-bold text-gray-800 uppercase">Select Size:</label>
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-gray-800 uppercase">Select Size / Dimension:</label>
+                  {selectedSize && quickViewProduct.sizePrices?.[selectedSize] && (
+                    <span className="text-[11px] font-bold text-[#701A23]">
+                      Selected Size: ₹{Number(quickViewProduct.sizePrices[selectedSize]).toLocaleString('en-IN')}
+                    </span>
+                  )}
+                </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  {quickViewProduct.sizes.map((size) => (
-                    <button
-                      key={size}
-                      onClick={() => setSelectedSize(size)}
-                      className={`min-w-9 h-9 px-3 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
-                        selectedSize === size
-                          ? 'bg-[#701A23] text-white border-[#701A23] shadow-sm'
-                          : 'bg-white text-gray-800 border-gray-200 hover:border-[#701A23]'
-                      }`}
-                    >
-                      {size}
-                    </button>
-                  ))}
+                  {quickViewProduct.sizes.map((size) => {
+                    const customPrice = quickViewProduct.sizePrices?.[size];
+                    const isSelected = selectedSize === size;
+                    return (
+                      <button
+                        key={size}
+                        onClick={() => setSelectedSize(size)}
+                        className={`min-h-9 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer flex items-center gap-1.5 ${
+                          isSelected
+                            ? 'bg-[#701A23] text-white border-[#701A23] shadow-sm'
+                            : 'bg-white text-gray-800 border-gray-200 hover:border-[#701A23]'
+                        }`}
+                      >
+                        <span>{size}</span>
+                        {customPrice && (
+                          <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded ${isSelected ? 'bg-white/20 text-white' : 'bg-emerald-50 text-emerald-700'}`}>
+                            ₹{Number(customPrice).toLocaleString('en-IN')}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -221,7 +320,7 @@ export default function ProductQuickViewModal() {
                   className="flex-1 bg-[#701A23] hover:bg-[#521117] text-white py-3 px-4 rounded-xl text-sm font-bold flex items-center justify-center gap-2 shadow-md transition-colors cursor-pointer"
                 >
                   <ShoppingBag className="w-4 h-4" />
-                  <span>Add {quantity} to Cart • ₹{(quickViewProduct.price * quantity).toLocaleString('en-IN')}</span>
+                  <span>Add {quantity} to Cart • ₹{(currentPrice * quantity).toLocaleString('en-IN')}</span>
                 </button>
               ) : (
                 <button
@@ -246,13 +345,15 @@ export default function ProductQuickViewModal() {
               </button>
             </div>
 
-            <button
-              onClick={handleBuyWhatsApp}
-              className="w-full bg-[#25D366] hover:bg-[#128C7E] text-white py-3 px-4 rounded-xl text-sm font-bold flex items-center justify-center gap-2 shadow-sm transition-colors"
-            >
-              <MessageCircle className="w-4 h-4" />
-              <span>Order Directly via WhatsApp (+91 9618093699)</span>
-            </button>
+            {quickViewProduct.inStock !== false && (
+              <button
+                onClick={handleBuyNow}
+                className="w-full bg-[#701A23] hover:bg-[#521117] text-white py-3.5 px-4 rounded-xl text-sm font-bold flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transition-all cursor-pointer"
+              >
+                <CreditCard className="w-4 h-4" />
+                <span>Proceed to Pay (₹{(currentPrice * quantity).toLocaleString('en-IN')})</span>
+              </button>
+            )}
 
             {/* Micro Guarantees */}
             <div className="flex items-center justify-between text-[11px] text-gray-500 pt-2 px-1">

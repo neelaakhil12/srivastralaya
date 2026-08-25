@@ -1,25 +1,34 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowRight, Sparkles, ShieldCheck, Truck, Tag, Heart, Award, CheckCircle2, ShoppingBag, Star } from 'lucide-react';
+import { ArrowRight, Sparkles, ShieldCheck, Truck, Tag, Heart, Award, CheckCircle2, ShoppingBag, Star, ChevronLeft, ChevronRight } from 'lucide-react';
 import { InstagramIcon } from '../components/BrandIcons';
 import { categories as defaultCategories } from '../data/categories';
 import { products as defaultProducts } from '../data/products';
 import { getCategories, getProducts } from '../services/supabase';
+import { getHeroSliders, getSliderSettings } from '../services/sliders';
 import ProductCard from '../components/ProductCard';
 import AOS from 'aos';
 
 export default function HomePage({ setActivePage, onCategorySelect }) {
   const [categoriesList, setCategoriesList] = useState(defaultCategories);
-  const [productsList, setProductsList] = useState(defaultProducts);
+  const [productsList, setProductsList] = useState([]);
+  const [sliderList, setSliderList] = useState(() => {
+    const raw = getHeroSliders();
+    const active = raw.filter(s => s.active !== false);
+    return active.length > 0 ? active : raw;
+  });
+  const [sliderConfig, setSliderConfig] = useState(getSliderSettings);
+  const [currentSlide, setCurrentSlide] = useState(0);
 
   useEffect(() => {
     async function loadLive() {
       try {
         const [cats, prods] = await Promise.all([getCategories(), getProducts()]);
         if (cats && cats.length > 0) setCategoriesList(cats);
-        if (prods && prods.length > 0) setProductsList(prods);
+        setProductsList(Array.isArray(prods) ? prods : []);
         setTimeout(() => AOS.refresh(), 50);
       } catch (e) {
         console.warn('HomePage live data note:', e);
+        setProductsList([]);
       }
     }
     loadLive();
@@ -29,24 +38,38 @@ export default function HomePage({ setActivePage, onCategorySelect }) {
     return () => window.removeEventListener('sv_products_updated', handleSync);
   }, []);
 
-  const sliderImages = [
-    '/slider/image.png',
-    '/slider/image copy.png',
-    '/slider/image copy 2.png',
-    '/slider/image copy 3.png',
-    '/slider/image copy 4.png',
-    '/slider/image copy 5.png',
-    '/slider/image copy 6.png',
-    '/slider/image copy 7.png',
-  ];
-  const [currentSlide, setCurrentSlide] = useState(0);
+  useEffect(() => {
+    const handleSliderUpdate = () => {
+      const raw = getHeroSliders();
+      const active = raw.filter(s => s.active !== false);
+      setSliderList(active.length > 0 ? active : raw);
+      setSliderConfig(getSliderSettings());
+    };
+    window.addEventListener('sv_sliders_updated', handleSliderUpdate);
+    return () => window.removeEventListener('sv_sliders_updated', handleSliderUpdate);
+  }, []);
 
   useEffect(() => {
+    if (!sliderList || sliderList.length <= 1) return;
+    const intervalMs = Math.max(1000, Number(sliderConfig.intervalSeconds || 2.5) * 1000);
     const slideInterval = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % sliderImages.length);
-    }, 2000);
+      setCurrentSlide((prev) => (prev + 1) % sliderList.length);
+    }, intervalMs);
     return () => clearInterval(slideInterval);
-  }, []);
+  }, [sliderList, sliderConfig]);
+
+  const handleSlideClick = (slide) => {
+    if (!slide) return;
+    const target = slide.link || 'products';
+    if (['sarees', 'jewellery', 'dresses', 'hair-accessories', 'shirts', 't-shirts', 'photoframes', 'fancy-items'].includes(target)) {
+      if (onCategorySelect) onCategorySelect(target);
+      setActivePage('products');
+    } else if (target === 'categories') {
+      setActivePage('categories');
+    } else {
+      setActivePage('products');
+    }
+  };
 
   const featuredProducts = productsList.filter(p => p.isFeatured).slice(0, 8);
   const explicitBestSellers = productsList.filter(p => p.isBestSeller);
@@ -58,15 +81,7 @@ export default function HomePage({ setActivePage, onCategorySelect }) {
     ? explicitTrending.slice(0, 8)
     : [...productsList].sort((a, b) => (b.reviewsCount || 0) - (a.reviewsCount || 0)).slice(0, 8);
 
-  const instagramPosts = [
-    { id: 1, image: "/products/generic-product.png" },
-    { id: 2, image: "/products/generic-product.png" },
-    { id: 3, image: "/products/generic-product.png" },
-    { id: 4, image: "/products/generic-product.png" },
-    { id: 5, image: "/products/generic-product.png" },
-    { id: 5, image: "/products/generic-product.png" },
-    { id: 6, image: "/products/generic-product.png" }
-  ];
+
 
   const customerReviews = [
     { id: 1, name: "Sneha Reddy", location: "Hyderabad", text: "Absolutely loved the temple jewellery set! The quality is amazing for the price.", rating: 5 },
@@ -84,24 +99,58 @@ export default function HomePage({ setActivePage, onCategorySelect }) {
   return (
     <div className="space-y-12 sm:space-y-16 pb-12">
       <div className="flex flex-col">
-        {/* 1. HERO SECTION (IMAGE SLIDER) */}
-        <section className="relative overflow-hidden w-full aspect-[16/9] sm:aspect-[21/9] md:aspect-[2.5/1] lg:aspect-[3/1] max-h-[600px] bg-[#FAF8F5]">
-          {sliderImages.map((src, index) => (
-            <img
-              key={index}
-              src={src}
-              alt={`Slide ${index + 1}`}
-              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${
-                index === currentSlide ? 'opacity-100 z-10' : 'opacity-0 z-0'
-              }`}
-            />
-          ))}
+        {/* 1. HERO SECTION (DYNAMIC IMAGE SLIDER) */}
+        <section className="relative overflow-hidden w-full aspect-[16/9] sm:aspect-[21/9] md:aspect-[2.5/1] lg:aspect-[3/1] max-h-[600px] bg-[#FAF8F5] select-none">
+          {sliderList.map((slide, index) => {
+            const imgSrc = typeof slide === 'string' ? slide : slide.image;
+            const slideTitle = typeof slide === 'object' ? slide.title : '';
+            const slideSubtitle = typeof slide === 'object' ? slide.subtitle : '';
+            return (
+              <div
+                key={slide.id || index}
+                onClick={() => handleSlideClick(slide)}
+                className={`absolute inset-0 w-full h-full cursor-pointer transition-opacity duration-1000 ${
+                  index === currentSlide ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
+                }`}
+              >
+                <img
+                  src={imgSrc}
+                  alt={slideTitle || `Slide ${index + 1}`}
+                  className="w-full h-full object-cover"
+                />
+
+                {/* Optional Text Overlay */}
+                {(slideTitle || slideSubtitle) && (
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent flex flex-col justify-end p-6 sm:p-12 text-white">
+                    {slideTitle && (
+                      <h2 className="font-serif text-xl sm:text-3xl lg:text-4xl font-bold tracking-wide text-white drop-shadow-md">
+                        {slideTitle}
+                      </h2>
+                    )}
+                    {slideSubtitle && (
+                      <p className="text-xs sm:text-sm text-gray-200 mt-1 max-w-xl line-clamp-2 drop-shadow">
+                        {slideSubtitle}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
           {/* Slider Indicators */}
-          <div className="absolute bottom-4 left-0 right-0 z-20 flex justify-center gap-2">
-            {sliderImages.map((_, idx) => (
-              <div 
-                key={idx} 
-                className={`h-1.5 rounded-full transition-all duration-500 ${idx === currentSlide ? 'w-6 bg-[#D4AF37]' : 'w-2 bg-white/50'}`}
+          <div className="absolute bottom-4 left-0 right-0 z-20 flex justify-center gap-2 pointer-events-auto">
+            {sliderList.map((_, idx) => (
+              <button
+                key={idx}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCurrentSlide(idx);
+                }}
+                className={`h-1.5 rounded-full transition-all duration-500 cursor-pointer ${
+                  idx === currentSlide ? 'w-6 bg-[#D4AF37]' : 'w-2 bg-white/60 hover:bg-white'
+                }`}
+                title={`Go to slide ${idx + 1}`}
               />
             ))}
           </div>
@@ -109,8 +158,11 @@ export default function HomePage({ setActivePage, onCategorySelect }) {
           {/* Shop Now Button Overlay (Desktop Only) */}
           <div className="hidden sm:flex absolute inset-0 z-30 flex-col items-center justify-end pb-12 sm:pb-16 pointer-events-none">
             <button
-              onClick={() => setActivePage('products')}
-              className="pointer-events-auto bg-[#701A23]/90 hover:bg-[#521117] text-white px-8 py-3.5 rounded-full font-bold text-base flex items-center justify-center gap-2 shadow-2xl backdrop-blur-sm transition-all transform hover:scale-105 border border-white/20"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleSlideClick(sliderList[currentSlide]);
+              }}
+              className="pointer-events-auto bg-[#701A23]/90 hover:bg-[#521117] text-white px-8 py-3.5 rounded-full font-bold text-base flex items-center justify-center gap-2 shadow-2xl backdrop-blur-sm transition-all transform hover:scale-105 border border-white/20 cursor-pointer"
             >
               <span>SHOP NOW</span>
               <ArrowRight className="w-5 h-5" />
@@ -288,25 +340,7 @@ export default function HomePage({ setActivePage, onCategorySelect }) {
         </div>
       </section>
 
-      {/* 8. INSTAGRAM SHOWCASE */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6" data-aos="fade-up">
-        <div className="text-center space-y-1">
-          <InstagramIcon className="w-6 h-6 text-[#701A23] mx-auto" />
-          <h3 className="font-serif text-2xl font-bold text-gray-900">FOLLOW US ON INSTAGRAM</h3>
-          <p className="text-xs font-semibold text-[#D4AF37]">@sv_sri_vastralaya</p>
-        </div>
 
-        <div className="flex overflow-x-auto gap-3 pb-4 hide-scroll snap-x">
-          {instagramPosts.map((post) => (
-            <div key={post.id} className="relative aspect-square w-40 sm:w-48 lg:w-56 shrink-0 snap-start rounded-xl overflow-hidden group">
-              <img src={post.image} alt="" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" />
-              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
-                <InstagramIcon className="w-6 h-6" />
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
 
       {/* 9. CUSTOMER REVIEWS */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6" data-aos="fade-up">

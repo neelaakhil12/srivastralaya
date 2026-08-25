@@ -13,6 +13,21 @@ import {
 import { getProducts, getCategories, addProduct, updateProduct, deleteProduct } from '../services/supabase';
 import { uploadToCloudinary } from '../services/cloudinary';
 
+const POPULAR_COLORS = [
+  { name: 'Red', hex: '#E53E3E' },
+  { name: 'Black', hex: '#1A202C' },
+  { name: 'Maroon', hex: '#701A23' },
+  { name: 'Royal Blue', hex: '#2B6CB0' },
+  { name: 'Bottle Green', hex: '#22543D' },
+  { name: 'Yellow / Gold', hex: '#D69E2E' },
+  { name: 'Pink', hex: '#ED64A6' },
+  { name: 'White / Cream', hex: '#FAF5EE' },
+  { name: 'Navy Blue', hex: '#1A365D' },
+  { name: 'Peacock Teal', hex: '#2C7A7B' },
+  { name: 'Orange / Rust', hex: '#DD6B20' },
+  { name: 'Purple / Violet', hex: '#6B46C1' }
+];
+
 export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -20,21 +35,21 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('all');
   const [stockFilter, setStockFilter] = useState('all');
-
-  // Modal states
+  const [submitting, setSubmitting] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadingColorName, setUploadingColorName] = useState(null);
+  const [customColorName, setCustomColorName] = useState('');
+  const [customColorHex, setCustomColorHex] = useState('#701A23');
+  const [modalError, setModalError] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [uploadingImage, setUploadingImage] = useState(false);
-  const [modalError, setModalError] = useState('');
 
-  // Form data
+  // Form State
   const [formData, setFormData] = useState({
     id: '',
     name: '',
     category: 'dresses',
-    subcategory: '',
     price: '',
     oldPrice: '',
     discount: '',
@@ -47,13 +62,16 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
     image: '',
     images: [],
     description: '',
+    specifications: '',
     inStock: true,
-    fabric: 'Pure Cotton / Silk Blend',
-    length: 'Standard Length',
     hasSizes: false,
-    sizes: []
+    sizes: [],
+    sizePrices: {},
+    hasColors: false,
+    colors: []
   });
   const [customSizeInput, setCustomSizeInput] = useState('');
+  const [showAllSizeTypes, setShowAllSizeTypes] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -83,32 +101,58 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
   };
 
   const handleCategoryChange = (newCat) => {
-    const catLower = newCat.toLowerCase();
-    const apparelCategories = ['dress', 'shirt', 'kurti', 'menswear', 'men', 'kids', 'western', 'lehenga', 'pant', 'bottom', 'top'];
-    const shouldHaveSize = apparelCategories.some(c => catLower.includes(c));
+    const catLower = (newCat || '').toLowerCase();
+    const isFrame = catLower.includes('photo') || catLower.includes('frame');
+    const isShirt = catLower.includes('shirt') && !catLower.includes('t-shirt') && !catLower.includes('tshirt');
+    const isTShirt = catLower.includes('t-shirt') || catLower.includes('tshirt');
+    const apparelCategories = ['dress', 'shirt', 'kurti', 'menswear', 'men', 'kids', 'western', 'lehenga', 'pant', 'bottom', 'top', 't-shirt'];
+    const isApparel = apparelCategories.some(c => catLower.includes(c));
+    const shouldHaveSize = isFrame || isApparel;
 
-    setFormData(prev => ({
-      ...prev,
-      category: newCat,
-      hasSizes: shouldHaveSize,
-      sizes: shouldHaveSize ? (prev.sizes && prev.sizes.length > 0 ? prev.sizes : ['S', 'M', 'L', 'XL', 'XXL']) : []
-    }));
+    setShowAllSizeTypes(false);
+
+    setFormData(prev => {
+      let defaultSizes = [];
+      let defaultSizePrices = {};
+
+      if (isFrame) {
+        defaultSizes = ['A3', 'A4', 'A5', 'A6'];
+        defaultSizePrices = { 'A6': 199, 'A5': 299, 'A4': 499, 'A3': 799 };
+      } else if (isShirt) {
+        defaultSizes = ['M', 'L', 'XL', 'XXL'];
+      } else if (isTShirt || isApparel) {
+        defaultSizes = ['S', 'M', 'L', 'XL', 'XXL'];
+      }
+
+      return {
+        ...prev,
+        category: newCat,
+        hasSizes: shouldHaveSize,
+        sizes: shouldHaveSize ? defaultSizes : [],
+        sizePrices: shouldHaveSize ? defaultSizePrices : {}
+      };
+    });
   };
 
   const handleToggleSize = (sizeStr) => {
     setFormData(prev => {
       const exists = prev.sizes.includes(sizeStr);
       const updated = exists ? prev.sizes.filter(s => s !== sizeStr) : [...prev.sizes, sizeStr];
+      const updatedPrices = { ...(prev.sizePrices || {}) };
+      if (exists) {
+        delete updatedPrices[sizeStr];
+      }
       return {
         ...prev,
         hasSizes: true,
-        sizes: updated
+        sizes: updated,
+        sizePrices: updatedPrices
       };
     });
   };
 
   const handleAddCustomSize = () => {
-    const trimmed = customSizeInput.trim().toUpperCase();
+    const trimmed = customSizeInput.trim();
     if (!trimmed) return;
     if (!formData.sizes.includes(trimmed)) {
       setFormData(prev => ({
@@ -121,23 +165,87 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
   };
 
   const handleRemoveSize = (sizeStr) => {
+    setFormData(prev => {
+      const updatedPrices = { ...(prev.sizePrices || {}) };
+      delete updatedPrices[sizeStr];
+      return {
+        ...prev,
+        sizes: prev.sizes.filter(s => s !== sizeStr),
+        sizePrices: updatedPrices
+      };
+    });
+  };
+
+  const handleToggleColor = (colorPreset) => {
+    setFormData(prev => {
+      const exists = (prev.colors || []).some(c => c.name.toLowerCase() === colorPreset.name.toLowerCase());
+      const updated = exists
+        ? prev.colors.filter(c => c.name.toLowerCase() !== colorPreset.name.toLowerCase())
+        : [...(prev.colors || []), { name: colorPreset.name, hex: colorPreset.hex, image: '' }];
+      return {
+        ...prev,
+        hasColors: true,
+        colors: updated
+      };
+    });
+  };
+
+  const handleAddCustomColor = () => {
+    const trimmed = customColorName.trim();
+    if (!trimmed) return;
+    setFormData(prev => {
+      const exists = (prev.colors || []).some(c => c.name.toLowerCase() === trimmed.toLowerCase());
+      if (exists) return prev;
+      return {
+        ...prev,
+        hasColors: true,
+        colors: [...(prev.colors || []), { name: trimmed, hex: customColorHex, image: '' }]
+      };
+    });
+    setCustomColorName('');
+  };
+
+  const handleRemoveColor = (colorName) => {
     setFormData(prev => ({
       ...prev,
-      sizes: prev.sizes.filter(s => s !== sizeStr)
+      colors: (prev.colors || []).filter(c => c.name !== colorName)
     }));
+  };
+
+  const handleColorImageUpload = async (colorName, e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingColorName(colorName);
+    setModalError('');
+    try {
+      const cloudinaryUrl = await uploadToCloudinary(file, 'sri-vastralaya/products');
+      setFormData(prev => ({
+        ...prev,
+        colors: (prev.colors || []).map(c => c.name === colorName ? { ...c, image: cloudinaryUrl } : c),
+        image: prev.image || cloudinaryUrl,
+        images: prev.images && prev.images.length > 0 ? prev.images : [cloudinaryUrl]
+      }));
+    } catch (err) {
+      setModalError(`Failed to upload ${colorName} image: ` + err.message);
+    } finally {
+      setUploadingColorName(null);
+    }
   };
 
   const handleOpenCreate = () => {
     const defaultCat = categories[0]?.id || 'dresses';
     const catLower = defaultCat.toLowerCase();
-    const isApparel = ['dress', 'shirt', 'kurti', 'menswear', 'men', 'kids', 'western'].some(c => catLower.includes(c));
+    const isFrame = catLower.includes('photo') || catLower.includes('frame');
+    const isApparel = ['dress', 'shirt', 'kurti', 'menswear', 'men', 'kids', 'western', 't-shirt'].some(c => catLower.includes(c));
+    const shouldHaveSize = isFrame || isApparel;
 
+    setShowAllSizeTypes(false);
     setEditingProduct(null);
     setFormData({
       id: '',
       name: '',
       category: defaultCat,
-      subcategory: '',
       price: '',
       oldPrice: '',
       discount: '',
@@ -150,11 +258,15 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
       image: '',
       images: [],
       description: '',
+      specifications: isFrame
+        ? '• Synthetic Wood Premium Matte Frame\n• High Clarity Acrylic Glass\n• Wall Mount & Table Stand Included\n• Fade-Proof High-Definition Print'
+        : '• 100% Premium Quality Fabric\n• Elegant Traditional Weave\n• Comfortable & Breathable Fit\n• Dry Clean or Gentle Hand Wash Recommended',
       inStock: true,
-      fabric: 'Pure Cotton / Silk Blend',
-      length: 'Standard Length',
-      hasSizes: isApparel,
-      sizes: isApparel ? ['S', 'M', 'L', 'XL', 'XXL'] : []
+      hasSizes: shouldHaveSize,
+      sizes: isFrame ? ['A3', 'A4', 'A5', 'A6'] : (isApparel ? ['S', 'M', 'L', 'XL', 'XXL'] : []),
+      sizePrices: isFrame ? { 'A6': 199, 'A5': 299, 'A4': 499, 'A3': 799 } : {},
+      hasColors: false,
+      colors: []
     });
     setCustomSizeInput('');
     setModalError('');
@@ -163,12 +275,18 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
 
   const handleOpenEdit = (prod) => {
     const prodHasSizes = Boolean(prod.sizes && Array.isArray(prod.sizes) && prod.sizes.length > 0);
+    const prodHasColors = Boolean(prod.colors && Array.isArray(prod.colors) && prod.colors.length > 0);
+    const parsedSpecs = Array.isArray(prod.specifications) && prod.specifications.length > 0
+      ? prod.specifications.map(s => s.startsWith('•') ? s : `• ${s}`).join('\n')
+      : (typeof prod.specifications === 'string' && prod.specifications.trim()
+        ? prod.specifications
+        : ([prod.fabric ? `• Fabric: ${prod.fabric}` : '', prod.length ? `• Dimensions: ${prod.length}` : '', prod.subcategory ? `• Type: ${prod.subcategory}` : ''].filter(Boolean).join('\n')));
+
     setEditingProduct(prod);
     setFormData({
       id: prod.id,
       name: prod.name,
       category: prod.category || 'dresses',
-      subcategory: prod.subcategory || '',
       price: prod.price || '',
       oldPrice: prod.oldPrice || '',
       discount: prod.discount || '',
@@ -181,11 +299,13 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
       image: prod.image || '',
       images: Array.isArray(prod.images) ? [...prod.images] : (prod.image ? [prod.image] : []),
       description: prod.description || '',
+      specifications: parsedSpecs,
       inStock: prod.inStock ?? true,
-      fabric: prod.fabric || '',
-      length: prod.length || '',
       hasSizes: prodHasSizes,
-      sizes: Array.isArray(prod.sizes) ? [...prod.sizes] : []
+      sizes: Array.isArray(prod.sizes) ? [...prod.sizes] : [],
+      sizePrices: (prod.sizePrices && typeof prod.sizePrices === 'object') ? { ...prod.sizePrices } : {},
+      hasColors: prodHasColors,
+      colors: Array.isArray(prod.colors) ? [...prod.colors] : []
     });
     setCustomSizeInput('');
     setModalError('');
@@ -289,12 +409,30 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
     setSubmitting(true);
     try {
       const generatedId = formData.id.trim() || `sv-${formData.category.slice(0, 3)}-${Date.now().toString().slice(-4)}`;
+      
+      // Clean sizePrices so only active sizes are kept and empty values removed
+      const cleanedSizePrices = {};
+      if (formData.hasSizes && formData.sizes && formData.sizes.length > 0 && formData.sizePrices) {
+        formData.sizes.forEach(s => {
+          if (formData.sizePrices[s] !== undefined && formData.sizePrices[s] !== '' && formData.sizePrices[s] !== null) {
+            cleanedSizePrices[s] = Number(formData.sizePrices[s]);
+          }
+        });
+      }
+
+      const specLines = typeof formData.specifications === 'string'
+        ? formData.specifications.split('\n').map(s => s.replace(/^[•\-*]\s*/, '').trim()).filter(Boolean)
+        : (Array.isArray(formData.specifications) ? formData.specifications : []);
+
       const payload = {
         ...formData,
         id: generatedId,
         price: Number(formData.price),
         oldPrice: formData.oldPrice ? Number(formData.oldPrice) : null,
         sizes: formData.hasSizes && formData.sizes.length > 0 ? formData.sizes : null,
+        sizePrices: Object.keys(cleanedSizePrices).length > 0 ? cleanedSizePrices : null,
+        colors: formData.hasColors && formData.colors && formData.colors.length > 0 ? formData.colors : null,
+        specifications: specLines.length > 0 ? specLines : null,
         images: formData.images.length > 0 ? formData.images : [formData.image]
       };
 
@@ -591,35 +729,20 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
                   />
                 </div>
 
-                {/* Category & Subcategory Row */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block font-bold text-gray-700 uppercase mb-1">
-                      Category *
-                    </label>
-                    <select
-                      value={formData.category}
-                      onChange={(e) => handleCategoryChange(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold text-gray-800 focus:bg-white focus:ring-2 focus:ring-[#701A23] focus:outline-none cursor-pointer"
-                    >
-                      {categories.map(c => (
-                        <option key={c.id} value={c.id}>{c.name}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block font-bold text-gray-700 uppercase mb-1">
-                      Subcategory / Fabric Type
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.subcategory}
-                      onChange={(e) => setFormData(prev => ({ ...prev, subcategory: e.target.value }))}
-                      placeholder="e.g. Silk Cotton Saree"
-                      className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:bg-white focus:ring-2 focus:ring-[#701A23] focus:outline-none"
-                    />
-                  </div>
+                {/* Category Selection */}
+                <div>
+                  <label className="block font-bold text-gray-700 uppercase mb-1">
+                    Category *
+                  </label>
+                  <select
+                    value={formData.category}
+                    onChange={(e) => handleCategoryChange(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold text-gray-800 focus:bg-white focus:ring-2 focus:ring-[#701A23] focus:outline-none cursor-pointer"
+                  >
+                    {categories.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
                 </div>
 
                 {/* Price, Old Price & Discount */}
@@ -746,7 +869,191 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
                   </div>
                 </div>
 
-                {/* Custom Size Configuration Section */}
+                {/* 🎨 Color Variants Configuration Section */}
+                <div className="p-4 bg-gray-50/90 rounded-2xl border border-gray-200 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="flex items-center gap-2.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.hasColors}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setFormData(prev => ({
+                            ...prev,
+                            hasColors: checked,
+                            colors: checked ? (prev.colors && prev.colors.length > 0 ? prev.colors : [
+                              { name: 'Red', hex: '#E53E3E', image: '' },
+                              { name: 'Black', hex: '#1A202C', image: '' }
+                            ]) : []
+                          }));
+                        }}
+                        className="w-4 h-4 text-[#701A23] rounded border-gray-300 focus:ring-[#701A23] cursor-pointer"
+                      />
+                      <span className="font-bold text-gray-800 text-xs sm:text-sm uppercase tracking-wide">
+                        Enable Color Variants for this product (Sarees, Dresses, Shirts, T-Shirts)
+                      </span>
+                    </label>
+                    {formData.hasColors && (
+                      <span className="text-[11px] font-bold text-[#701A23] bg-[#701A23]/10 px-2.5 py-0.5 rounded-full">
+                        {formData.colors?.length || 0} active colors
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-gray-500">
+                    Select colors available for this product and upload the specific photo for each color.
+                  </p>
+
+                  {formData.hasColors && (
+                    <div className="pt-3 border-t border-gray-200 space-y-4 animate-fadeIn">
+                      {/* Popular Color Presets */}
+                      <div>
+                        <span className="block text-[11px] font-bold text-gray-700 uppercase mb-2">
+                          Popular Color Presets (Click to add/remove):
+                        </span>
+                        <div className="flex flex-wrap gap-2">
+                          {POPULAR_COLORS.map((col) => {
+                            const isSelected = (formData.colors || []).some(c => c.name.toLowerCase() === col.name.toLowerCase());
+                            return (
+                              <button
+                                type="button"
+                                key={col.name}
+                                onClick={() => handleToggleColor(col)}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
+                                  isSelected
+                                    ? 'bg-[#701A23] text-white border-[#701A23] shadow-xs'
+                                    : 'bg-white text-gray-800 border-gray-200 hover:border-[#701A23] hover:bg-gray-50'
+                                }`}
+                              >
+                                <span
+                                  className="w-3.5 h-3.5 rounded-full border border-gray-300 shrink-0 shadow-inner"
+                                  style={{ backgroundColor: col.hex }}
+                                />
+                                <span>{col.name}</span>
+                                {isSelected && <span>✓</span>}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Custom Color Adder */}
+                      <div className="p-3 bg-white rounded-xl border border-gray-200 space-y-2">
+                        <span className="block text-[11px] font-bold text-gray-700 uppercase">
+                          + Add Custom Color:
+                        </span>
+                        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
+                          <input
+                            type="text"
+                            value={customColorName}
+                            onChange={(e) => setCustomColorName(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleAddCustomColor();
+                              }
+                            }}
+                            placeholder="Color name (e.g. Mint Green, Coral Pink, Rust Orange)"
+                            className="flex-1 px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:bg-white focus:ring-2 focus:ring-[#701A23] focus:outline-none"
+                          />
+                          <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 px-2.5 py-1.5 rounded-xl">
+                            <span className="text-[11px] font-bold text-gray-600">Color:</span>
+                            <input
+                              type="color"
+                              value={customColorHex}
+                              onChange={(e) => setCustomColorHex(e.target.value)}
+                              className="w-6 h-6 rounded border-0 cursor-pointer p-0 bg-transparent"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleAddCustomColor}
+                            className="px-4 py-2 bg-[#701A23] hover:bg-[#521117] text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer whitespace-nowrap"
+                          >
+                            + Add Color
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Active Color Cards with Image Upload */}
+                      {(formData.colors || []).length > 0 && (
+                        <div className="space-y-2.5 pt-1">
+                          <span className="block text-[11px] font-bold text-gray-800 uppercase">
+                            Upload Color-Specific Images:
+                          </span>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {formData.colors.map((colorItem) => (
+                              <div
+                                key={colorItem.name}
+                                className="p-3 bg-white rounded-xl border border-gray-200 flex items-center gap-3 shadow-2xs relative group"
+                              >
+                                {/* Color preview circle */}
+                                <div
+                                  className="w-5 h-5 rounded-full border border-gray-300 shrink-0 shadow-inner"
+                                  style={{ backgroundColor: colorItem.hex }}
+                                  title={colorItem.hex}
+                                />
+
+                                {/* Color name & image */}
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-bold text-xs text-gray-900 truncate">
+                                      {colorItem.name}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveColor(colorItem.name)}
+                                      className="text-gray-400 hover:text-red-600 p-0.5 cursor-pointer"
+                                      title="Remove color"
+                                    >
+                                      <X className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+
+                                  {/* Image status / upload button */}
+                                  <div className="mt-1.5 flex items-center gap-2">
+                                    {colorItem.image ? (
+                                      <div className="flex items-center gap-2">
+                                        <img
+                                          src={colorItem.image}
+                                          alt={colorItem.name}
+                                          className="w-10 h-10 object-cover rounded-lg border border-gray-200 shrink-0"
+                                        />
+                                        <label className="text-[10px] font-bold text-[#701A23] hover:underline cursor-pointer">
+                                          Change
+                                          <input
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={(e) => handleColorImageUpload(colorItem.name, e)}
+                                            className="hidden"
+                                          />
+                                        </label>
+                                      </div>
+                                    ) : (
+                                      <label className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 rounded-lg text-[10px] font-bold cursor-pointer transition-colors">
+                                        <Upload className="w-3 h-3" />
+                                        <span>
+                                          {uploadingColorName === colorItem.name ? 'Uploading...' : 'Upload Photo'}
+                                        </span>
+                                        <input
+                                          type="file"
+                                          accept="image/*"
+                                          onChange={(e) => handleColorImageUpload(colorItem.name, e)}
+                                          className="hidden"
+                                        />
+                                      </label>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Custom Size / Dimensions Configuration Section */}
                 <div className="p-4 bg-gray-50/90 rounded-2xl border border-gray-200 space-y-3">
                   <div className="flex items-center justify-between">
                     <label className="flex items-center gap-2.5 cursor-pointer">
@@ -755,16 +1062,19 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
                         checked={formData.hasSizes}
                         onChange={(e) => {
                           const checked = e.target.checked;
+                          const catLower = (formData.category || '').toLowerCase();
+                          const isFrame = catLower.includes('photo') || catLower.includes('frame');
+                          const defaultSizes = isFrame ? ['A3', 'A4', 'A5', 'A6'] : ['S', 'M', 'L', 'XL', 'XXL'];
                           setFormData(prev => ({
                             ...prev,
                             hasSizes: checked,
-                            sizes: checked ? (prev.sizes && prev.sizes.length > 0 ? prev.sizes : ['S', 'M', 'L', 'XL', 'XXL']) : []
+                            sizes: checked ? (prev.sizes && prev.sizes.length > 0 ? prev.sizes : defaultSizes) : []
                           }));
                         }}
                         className="w-4 h-4 text-[#701A23] rounded border-gray-300 focus:ring-[#701A23] cursor-pointer"
                       />
                       <span className="font-bold text-gray-800 text-xs sm:text-sm uppercase tracking-wide">
-                        Enable Size Options for this product
+                        Enable Size / Dimension Options for this product
                       </span>
                     </label>
                     {formData.hasSizes && (
@@ -774,67 +1084,165 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
                     )}
                   </div>
                   <p className="text-[11px] text-gray-500">
-                    Enable for Dresses, Shirts, Kurtis, Pants. Keep unchecked for Fancy items, Sarees, Accessories without sizes.
+                    {(formData.category || '').toLowerCase().includes('photo') || (formData.category || '').toLowerCase().includes('frame')
+                      ? 'Enable to set Photo Frame dimensions (A3, A4, A5, A6) and size-specific prices.'
+                      : 'Enable for variable sizes (S, M, L, XL, XXL) and size-specific prices. Keep unchecked for Sarees or fixed-size items.'}
                   </p>
 
                   {formData.hasSizes && (
-                    <div className="pt-3 border-t border-gray-200 space-y-3.5 animate-fadeIn">
-                      {/* Alphabet Quick Presets */}
-                      <div>
-                        <span className="block text-[11px] font-bold text-gray-700 uppercase mb-1.5">
-                          Standard Alphabet Sizes:
-                        </span>
-                        <div className="flex flex-wrap gap-1.5">
-                          {['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL', 'Free Size'].map((preset) => {
-                            const isSelected = formData.sizes.includes(preset);
-                            return (
-                              <button
-                                type="button"
-                                key={preset}
-                                onClick={() => handleToggleSize(preset)}
-                                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                                  isSelected
-                                    ? 'bg-[#701A23] text-white shadow-xs'
-                                    : 'bg-white text-gray-700 border border-gray-300 hover:border-[#701A23]'
-                                }`}
-                              >
-                                {isSelected ? `✓ ${preset}` : `+ ${preset}`}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
+                    <div className="pt-3 border-t border-gray-200 space-y-4 animate-fadeIn">
+                      {/* Dynamic Category-Specific Size Presets */}
+                      {(() => {
+                        const catLower = (formData.category || '').toLowerCase();
+                        const isFrame = catLower.includes('photo') || catLower.includes('frame');
+                        const isShirt = catLower.includes('shirt') && !catLower.includes('t-shirt') && !catLower.includes('tshirt');
 
-                      {/* Numbered Quick Presets */}
-                      <div>
-                        <span className="block text-[11px] font-bold text-gray-700 uppercase mb-1.5">
-                          Numbered Sizes (e.g. Shirts, Pants, Waist, Bangles):
-                        </span>
-                        <div className="flex flex-wrap gap-1.5">
-                          {['28', '30', '32', '34', '36', '38', '40', '42', '44', '2.4', '2.6', '2.8'].map((numSize) => {
-                            const isSelected = formData.sizes.includes(numSize);
-                            return (
-                              <button
-                                type="button"
-                                key={numSize}
-                                onClick={() => handleToggleSize(numSize)}
-                                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                                  isSelected
-                                    ? 'bg-[#701A23] text-white shadow-xs'
-                                    : 'bg-white text-gray-700 border border-gray-300 hover:border-[#701A23]'
-                                }`}
-                              >
-                                {isSelected ? `✓ ${numSize}` : `+ ${numSize}`}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
+                        // Strict category checking: Photo frames only for Photo Frames, Apparel for others
+                        const showFrames = isFrame;
+                        const showApparel = !isFrame;
+                        const showNumbered = isShirt;
 
-                      {/* Custom Size Adder */}
+                        return (
+                          <div className="space-y-3.5">
+                            {/* 🖼️ Photo Frame Presets (Shown ONLY when Photo Frames category is selected) */}
+                            {showFrames && (
+                              <div className="p-3.5 bg-amber-50/70 rounded-xl border border-amber-200/80 shadow-xs animate-fadeIn">
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="flex items-center gap-1.5 text-[11px] font-bold text-[#701A23] uppercase">
+                                    🖼️ Photo Frame Sizes &amp; Dimensions:
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const frameDefaults = ['A3', 'A4', 'A5', 'A6'];
+                                      setFormData(prev => ({
+                                        ...prev,
+                                        hasSizes: true,
+                                        sizes: Array.from(new Set([...prev.sizes, ...frameDefaults]))
+                                      }));
+                                    }}
+                                    className="text-[10px] font-bold text-[#701A23] bg-white px-2 py-0.5 rounded-md border border-amber-300 hover:bg-amber-100 cursor-pointer transition-colors"
+                                  >
+                                    + Add A3, A4, A5, A6 All
+                                  </button>
+                                </div>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {['A3', 'A4', 'A5', 'A6', '4x6 in', '5x7 in', '6x8 in', '8x10 in', '8x12 in', '10x12 in', '12x18 in', 'Mini Desk Frame'].map((preset) => {
+                                    const isSelected = formData.sizes.includes(preset);
+                                    return (
+                                      <button
+                                        type="button"
+                                        key={preset}
+                                        onClick={() => handleToggleSize(preset)}
+                                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                          isSelected
+                                            ? 'bg-[#701A23] text-white shadow-xs'
+                                            : 'bg-white text-gray-700 border border-amber-200 hover:border-[#701A23] hover:bg-amber-50'
+                                        }`}
+                                      >
+                                        {isSelected ? `✓ ${preset}` : `+ ${preset}`}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* 👕 Standard Apparel / T-Shirt / Shirt Sizes (Shown when NOT a photo frame) */}
+                            {showApparel && (
+                              <div className="p-3.5 bg-blue-50/40 rounded-xl border border-blue-200/60 shadow-xs animate-fadeIn">
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="block text-[11px] font-bold text-gray-800 uppercase">
+                                    👕 Standard Sizes (S, M, L, XL, XXL, 3XL):
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const apparelDefaults = ['S', 'M', 'L', 'XL', 'XXL', '3XL'];
+                                      setFormData(prev => ({
+                                        ...prev,
+                                        hasSizes: true,
+                                        sizes: Array.from(new Set([...prev.sizes, ...apparelDefaults]))
+                                      }));
+                                    }}
+                                    className="text-[10px] font-bold text-[#701A23] bg-white border border-gray-300 hover:bg-gray-100 px-2 py-0.5 rounded-md cursor-pointer transition-colors"
+                                  >
+                                    + Add S to 3XL All
+                                  </button>
+                                </div>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL', 'Free Size'].map((preset) => {
+                                    const isSelected = formData.sizes.includes(preset);
+                                    return (
+                                      <button
+                                        type="button"
+                                        key={preset}
+                                        onClick={() => handleToggleSize(preset)}
+                                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                          isSelected
+                                            ? 'bg-[#701A23] text-white shadow-xs'
+                                            : 'bg-white text-gray-700 border border-gray-300 hover:border-[#701A23]'
+                                        }`}
+                                      >
+                                        {isSelected ? `✓ ${preset}` : `+ ${preset}`}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* 👔 Numbered Shirt Sizes (Shown for Shirts) */}
+                            {showNumbered && (
+                              <div className="p-3.5 bg-gray-50 rounded-xl border border-gray-200 shadow-xs animate-fadeIn">
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="block text-[11px] font-bold text-gray-800 uppercase">
+                                    👔 Numbered Sizes (Formal Shirts 38-44, Pants):
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const numDefaults = ['38', '40', '42', '44'];
+                                      setFormData(prev => ({
+                                        ...prev,
+                                        hasSizes: true,
+                                        sizes: Array.from(new Set([...prev.sizes, ...numDefaults]))
+                                      }));
+                                    }}
+                                    className="text-[10px] font-bold text-[#701A23] bg-white border border-gray-300 hover:bg-gray-100 px-2 py-0.5 rounded-md cursor-pointer transition-colors"
+                                  >
+                                    + Add 38, 40, 42, 44 All
+                                  </button>
+                                </div>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {['28', '30', '32', '34', '36', '38', '40', '42', '44', '2.4', '2.6', '2.8'].map((numSize) => {
+                                    const isSelected = formData.sizes.includes(numSize);
+                                    return (
+                                      <button
+                                        type="button"
+                                        key={numSize}
+                                        onClick={() => handleToggleSize(numSize)}
+                                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                          isSelected
+                                            ? 'bg-[#701A23] text-white shadow-xs'
+                                            : 'bg-white text-gray-700 border border-gray-300 hover:border-[#701A23]'
+                                        }`}
+                                      >
+                                        {isSelected ? `✓ ${numSize}` : `+ ${numSize}`}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+
+                      {/* Custom Size / Dimension Adder */}
                       <div>
                         <span className="block text-[11px] font-bold text-gray-700 uppercase mb-1.5">
-                          Add Custom Size:
+                          Add Custom Size or Frame Dimension:
                         </span>
                         <div className="flex gap-2">
                           <input
@@ -847,7 +1255,7 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
                                 handleAddCustomSize();
                               }
                             }}
-                            placeholder="Type any custom size (e.g. 38, 42 (L), One Size, 4-5Y)"
+                            placeholder="Type any custom size (e.g. A3, A4, 12x18 in, 8x10 in, Custom Size)"
                             className="flex-1 px-3.5 py-2 bg-white border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-[#701A23] focus:outline-none"
                           />
                           <button
@@ -864,7 +1272,7 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
                       {formData.sizes.length > 0 && (
                         <div className="pt-2">
                           <span className="block text-[11px] font-bold text-gray-700 uppercase mb-1.5">
-                            Active Sizes for this Product:
+                            Active Sizes / Dimensions for this Product:
                           </span>
                           <div className="flex flex-wrap gap-1.5">
                             {formData.sizes.map((s, idx) => (
@@ -886,32 +1294,69 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
                           </div>
                         </div>
                       )}
+
+                      {/* Size-Based Pricing Table / Inputs */}
+                      {formData.sizes.length > 0 && (
+                        <div className="p-3.5 bg-emerald-50/70 border border-emerald-200 rounded-xl space-y-2.5 animate-fadeIn">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                            <span className="text-xs font-bold text-emerald-950 uppercase flex items-center gap-1.5">
+                              💰 Set Price for each Size (Optional):
+                            </span>
+                            <span className="text-[10px] text-emerald-700 font-semibold">
+                              Empty = Base Price (₹{formData.price || 0})
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                            {formData.sizes.map((s) => (
+                              <div key={s} className="bg-white p-2 rounded-lg border border-emerald-200 shadow-2xs">
+                                <label className="block text-[11px] font-bold text-gray-800 mb-1 truncate">
+                                  {s} Price:
+                                </label>
+                                <div className="relative">
+                                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">₹</span>
+                                  <input
+                                    type="number"
+                                    value={formData.sizePrices?.[s] ?? ''}
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      setFormData(prev => ({
+                                        ...prev,
+                                        sizePrices: {
+                                          ...(prev.sizePrices || {}),
+                                          [s]: val === '' ? '' : Number(val)
+                                        }
+                                      }));
+                                    }}
+                                    placeholder={formData.price ? String(formData.price) : 'Price'}
+                                    className="w-full pl-6 pr-2 py-1.5 bg-gray-50 border border-gray-200 rounded-md text-xs font-bold text-gray-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                                  />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
 
-                {/* Attributes: Fabric, Length */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block font-bold text-gray-700 uppercase mb-1">Fabric Details</label>
-                    <input
-                      type="text"
-                      value={formData.fabric}
-                      onChange={(e) => setFormData(prev => ({ ...prev, fabric: e.target.value }))}
-                      placeholder="e.g. Silk Cotton Blend"
-                      className="w-full px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:bg-white focus:ring-2 focus:ring-[#701A23] focus:outline-none"
-                    />
+                {/* Product Specifications (Point-Wise) */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block font-bold text-gray-700 uppercase">
+                      Product Specifications (Point-Wise)
+                    </label>
+                    <span className="text-[10px] text-gray-500 font-medium">
+                      Enter each spec on a new line (e.g. • 100% Cotton)
+                    </span>
                   </div>
-                  <div>
-                    <label className="block font-bold text-gray-700 uppercase mb-1">Length / Dimensions</label>
-                    <input
-                      type="text"
-                      value={formData.length}
-                      onChange={(e) => setFormData(prev => ({ ...prev, length: e.target.value }))}
-                      placeholder="e.g. 6.3 Meters with Blouse Piece, Standard Fit"
-                      className="w-full px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:bg-white focus:ring-2 focus:ring-[#701A23] focus:outline-none"
-                    />
-                  </div>
+                  <textarea
+                    rows="4"
+                    value={formData.specifications}
+                    onChange={(e) => setFormData(prev => ({ ...prev, specifications: e.target.value }))}
+                    placeholder="Enter points (one per line):&#10;• 100% Pure Organic Cotton / Silk Blend&#10;• Frame Material: Synthetic Matte Wood&#10;• Includes Sturdy Wall Hooks & Table Stand&#10;• Premium Quality Zari Border&#10;• Dry Clean / Easy Wipe Clean"
+                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium text-gray-800 focus:bg-white focus:ring-2 focus:ring-[#701A23] focus:outline-none"
+                  />
                 </div>
 
                 {/* Description */}

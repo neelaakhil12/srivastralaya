@@ -2,6 +2,28 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 
 const CartContext = createContext();
 
+export const getShippingSettings = () => {
+  try {
+    const raw = localStorage.getItem('sv_shipping_settings');
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+  return {
+    standardShippingFee: 99,
+    freeShippingThreshold: 2000,
+    enableFreeShipping: true,
+    deliveryNote: 'Fast Shipping Across India'
+  };
+};
+
+export const saveShippingSettings = (settings) => {
+  try {
+    localStorage.setItem('sv_shipping_settings', JSON.stringify(settings));
+    window.dispatchEvent(new Event('sv_shipping_updated'));
+  } catch (e) {
+    console.error('Failed to save shipping settings:', e);
+  }
+};
+
 export const CartProvider = ({ children }) => {
   const [cartItems, setCartItems] = useState(() => {
     try {
@@ -12,6 +34,7 @@ export const CartProvider = ({ children }) => {
     }
   });
 
+  const [shippingConfig, setShippingConfig] = useState(getShippingSettings);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
 
@@ -22,6 +45,14 @@ export const CartProvider = ({ children }) => {
       console.error("Failed to save cart to localStorage", e);
     }
   }, [cartItems]);
+
+  useEffect(() => {
+    const handleShippingUpdate = () => {
+      setShippingConfig(getShippingSettings());
+    };
+    window.addEventListener('sv_shipping_updated', handleShippingUpdate);
+    return () => window.removeEventListener('sv_shipping_updated', handleShippingUpdate);
+  }, []);
 
   const addToCart = (product, quantity = 1, selectedColor = null, selectedSize = null) => {
     setCartItems(prev => {
@@ -74,8 +105,13 @@ export const CartProvider = ({ children }) => {
 
   const totalItemsCount = cartItems.reduce((acc, item) => acc + item.quantity, 0);
   const subtotal = cartItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-  const freeShippingThreshold = 2000;
-  const isFreeShipping = subtotal >= freeShippingThreshold;
+
+  const standardShippingFee = Number(shippingConfig.standardShippingFee ?? 99);
+  const freeShippingThreshold = Number(shippingConfig.freeShippingThreshold ?? 2000);
+  const enableFreeShipping = Boolean(shippingConfig.enableFreeShipping ?? true);
+
+  const isFreeShipping = standardShippingFee === 0 || (enableFreeShipping && subtotal >= freeShippingThreshold);
+  const currentShippingCharge = isFreeShipping ? 0 : standardShippingFee;
   const amountNeededForFreeShipping = Math.max(0, freeShippingThreshold - subtotal);
 
   return (
@@ -89,7 +125,11 @@ export const CartProvider = ({ children }) => {
       clearCart,
       totalItemsCount,
       subtotal,
+      shippingConfig,
+      standardShippingFee,
+      currentShippingCharge,
       freeShippingThreshold,
+      enableFreeShipping,
       isFreeShipping,
       amountNeededForFreeShipping,
       toastMessage,

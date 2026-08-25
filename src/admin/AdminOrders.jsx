@@ -8,11 +8,15 @@ import {
   X,
   Loader2,
   Phone,
-  MapPin
+  MapPin,
+  Truck,
+  ExternalLink,
+  Check,
+  Save
 } from 'lucide-react';
-import { getOrders, updateOrderStatus, addOrder, deleteOrder } from '../services/supabase';
+import { getOrders, updateOrderStatus, updateOrderTracking, addOrder, deleteOrder } from '../services/supabase';
 
-export default function AdminOrders() {
+export default function AdminOrders({ onNavigateShipping }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -20,7 +24,16 @@ export default function AdminOrders() {
 
   // Order Details Modal
   const [selectedOrder, setSelectedOrder] = useState(null);
-  
+  const [isTrackingModalOpen, setIsTrackingModalOpen] = useState(false);
+  const [trackingForm, setTrackingForm] = useState({
+    status: '',
+    courierName: 'DTDC Express',
+    trackingId: '',
+    trackingUrl: 'https://track.dtdc.com/ctrk-tracking/tracker.html'
+  });
+  const [savingTracking, setSavingTracking] = useState(false);
+  const [trackingSuccess, setTrackingSuccess] = useState(false);
+
   // New Manual Order Modal
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [manualFormData, setManualFormData] = useState({
@@ -50,12 +63,77 @@ export default function AdminOrders() {
     }
   };
 
-  const handleStatusChange = async (orderId, newStatus) => {
+  const handleOpenTrackingModal = (order, forcedStatus = null) => {
+    setSelectedOrder(order);
+    setTrackingForm({
+      status: forcedStatus || order.status || 'Order Dispatched',
+      courierName: order.courierName || 'DTDC Express',
+      trackingId: order.trackingId || '',
+      trackingUrl: order.trackingUrl || 'https://track.dtdc.com/ctrk-tracking/tracker.html'
+    });
+    setTrackingSuccess(false);
+    setIsTrackingModalOpen(true);
+  };
+
+  const handleOpenOrderDetails = (order) => {
+    setSelectedOrder(order);
+    setTrackingForm({
+      status: order.status || 'Order Accepted',
+      courierName: order.courierName || 'DTDC Express',
+      trackingId: order.trackingId || '',
+      trackingUrl: order.trackingUrl || 'https://track.dtdc.com/ctrk-tracking/tracker.html'
+    });
+    setTrackingSuccess(false);
+  };
+
+  const handleSaveTracking = async (e) => {
+    e?.preventDefault();
+    if (!selectedOrder) return;
+    setSavingTracking(true);
+    setTrackingSuccess(false);
+
     try {
-      await updateOrderStatus(orderId, newStatus);
-      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
-      if (selectedOrder && selectedOrder.id === orderId) {
+      const payload = {
+        status: trackingForm.status,
+        courierName: trackingForm.courierName || 'DTDC Express',
+        trackingId: trackingForm.trackingId.trim(),
+        trackingUrl: trackingForm.trackingUrl.trim() || 'https://track.dtdc.com/ctrk-tracking/tracker.html'
+      };
+
+      await updateOrderTracking(selectedOrder.id, payload);
+
+      const updated = {
+        ...selectedOrder,
+        ...payload
+      };
+
+      setSelectedOrder(updated);
+      setOrders(prev => prev.map(o => o.id === selectedOrder.id ? updated : o));
+      setTrackingSuccess(true);
+      setTimeout(() => {
+        setTrackingSuccess(false);
+        setIsTrackingModalOpen(false);
+      }, 1200);
+    } catch (err) {
+      alert('Failed to update tracking: ' + err.message);
+    } finally {
+      setSavingTracking(false);
+    }
+  };
+
+  const handleStatusChange = async (order, newStatus) => {
+    // If setting to Dispatched or Out for Delivery, pop open the tracking input modal immediately!
+    if (newStatus === 'Order Dispatched' || newStatus === 'Out for Delivery' || newStatus === 'Dispatched') {
+      handleOpenTrackingModal(order, newStatus);
+      return;
+    }
+
+    try {
+      await updateOrderStatus(order.id, newStatus);
+      setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: newStatus } : o));
+      if (selectedOrder && selectedOrder.id === order.id) {
         setSelectedOrder(prev => ({ ...prev, status: newStatus }));
+        setTrackingForm(prev => ({ ...prev, status: newStatus }));
       }
     } catch (err) {
       alert('Failed to update status: ' + err.message);
@@ -145,13 +223,26 @@ export default function AdminOrders() {
             </p>
           </div>
 
-          <button
-            onClick={() => setIsManualModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-[#701A23] hover:bg-[#521117] text-white rounded-xl text-xs font-bold shadow-md transition-all cursor-pointer whitespace-nowrap"
-          >
-            <Plus className="w-4 h-4 text-[#D4AF37]" />
-            <span>Create Manual Order</span>
-          </button>
+          <div className="flex items-center gap-2.5">
+            {onNavigateShipping && (
+              <button
+                onClick={onNavigateShipping}
+                className="flex items-center gap-1.5 px-3.5 py-2.5 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 rounded-xl text-xs font-bold shadow-2xs transition-all cursor-pointer whitespace-nowrap"
+                title="Edit Store Shipping Charges & Delivery Rules"
+              >
+                <Truck className="w-4 h-4 text-[#701A23]" />
+                <span>Shipping Charges</span>
+              </button>
+            )}
+
+            <button
+              onClick={() => setIsManualModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-[#701A23] hover:bg-[#521117] text-white rounded-xl text-xs font-bold shadow-md transition-all cursor-pointer whitespace-nowrap"
+            >
+              <Plus className="w-4 h-4 text-[#D4AF37]" />
+              <span>Create Manual Order</span>
+            </button>
+          </div>
         </div>
 
         {/* Filters */}
@@ -246,41 +337,72 @@ export default function AdminOrders() {
                       }) : 'Today'}
                     </td>
 
-                    {/* Status Dropdown */}
+                    {/* Status Dropdown & DTDC Tracking Shortcut */}
                     <td className="py-3.5 px-4">
-                      <select
-                        value={order.status}
-                        onChange={(e) => handleStatusChange(order.id, e.target.value)}
-                        className={`text-[11px] font-bold rounded-lg px-2.5 py-1 border focus:outline-none cursor-pointer ${
-                          order.status === 'Completed'
-                            ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                            : order.status === 'Processing'
-                            ? 'bg-blue-50 text-blue-800 border-blue-200'
-                            : order.status === 'Cancelled'
-                            ? 'bg-red-50 text-red-800 border-red-200'
-                            : 'bg-amber-50 text-amber-800 border-amber-200'
-                        }`}
-                      >
-                        <option value="Pending">Pending</option>
-                        <option value="Processing">Processing</option>
-                        <option value="Completed">Completed</option>
-                        <option value="Cancelled">Cancelled</option>
-                      </select>
+                      <div className="space-y-1.5 min-w-[150px]">
+                        <select
+                          value={order.status}
+                          onChange={(e) => handleStatusChange(order, e.target.value)}
+                          className={`w-full text-[11px] font-bold rounded-lg px-2.5 py-1.5 border focus:outline-none cursor-pointer ${
+                            order.status === 'Delivered' || order.status === 'Completed'
+                              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                              : order.status === 'Out for Delivery'
+                              ? 'bg-purple-50 text-purple-800 border-purple-200'
+                              : order.status === 'Order Dispatched' || order.status === 'Dispatched'
+                              ? 'bg-indigo-50 text-indigo-800 border-indigo-200'
+                              : order.status === 'Order Accepted'
+                              ? 'bg-blue-50 text-blue-800 border-blue-200'
+                              : order.status === 'Cancelled'
+                              ? 'bg-red-50 text-red-800 border-red-200'
+                              : 'bg-amber-50 text-amber-800 border-amber-200'
+                          }`}
+                        >
+                          <option value="Order Accepted">Order Accepted</option>
+                          <option value="Order Dispatched">Order Dispatched</option>
+                          <option value="Out for Delivery">Out for Delivery</option>
+                          <option value="Delivered">Delivered</option>
+                          <option value="Pending">Pending</option>
+                          <option value="Cancelled">Cancelled</option>
+                        </select>
+
+                        {/* DTDC Tracking Badge / Button */}
+                        {order.trackingId ? (
+                          <button
+                            onClick={() => handleOpenTrackingModal(order)}
+                            className="w-full flex items-center justify-between text-[10px] font-bold text-blue-800 bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded-md border border-blue-200 transition-colors cursor-pointer"
+                            title="Click to edit DTDC tracking details"
+                          >
+                            <span className="flex items-center gap-1">
+                              <Truck className="w-3 h-3 text-blue-600" />
+                              <span>DTDC: {order.trackingId}</span>
+                            </span>
+                            <span className="text-[9px] text-blue-600 underline">Edit</span>
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleOpenTrackingModal(order)}
+                            className="w-full flex items-center justify-center gap-1 text-[10px] font-semibold text-gray-500 hover:text-[#701A23] bg-gray-50 hover:bg-[#FAF0F1] px-2 py-0.5 rounded border border-gray-200 transition-colors cursor-pointer"
+                          >
+                            <Truck className="w-3 h-3 text-gray-400" />
+                            <span>+ Set DTDC Tracking</span>
+                          </button>
+                        )}
+                      </div>
                     </td>
 
                     {/* Actions */}
                     <td className="py-3.5 px-4 text-right">
                       <div className="flex items-center justify-end gap-1">
                         <button
-                          onClick={() => setSelectedOrder(order)}
-                          className="p-1.5 text-gray-600 hover:text-[#701A23] hover:bg-[#FAF0F1] rounded-lg transition-colors"
+                          onClick={() => handleOpenOrderDetails(order)}
+                          className="p-1.5 text-gray-600 hover:text-[#701A23] hover:bg-[#FAF0F1] rounded-lg transition-colors cursor-pointer"
                           title="View Invoice & Items"
                         >
                           <Eye className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDelete(order.id)}
-                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
                           title="Delete Order"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -298,7 +420,7 @@ export default function AdminOrders() {
       {/* Order Details Drawer / Modal */}
       {selectedOrder && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl relative animate-fadeIn border border-gray-100">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl relative animate-fadeIn border border-gray-100 max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-4 border-b border-gray-100">
               <div>
                 <span className="text-[11px] font-mono text-gray-400">Order Summary</span>
@@ -308,7 +430,7 @@ export default function AdminOrders() {
               </div>
               <button
                 onClick={() => setSelectedOrder(null)}
-                className="p-1.5 text-gray-400 hover:text-gray-700 rounded-lg"
+                className="p-1.5 text-gray-400 hover:text-gray-700 rounded-lg cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -316,17 +438,128 @@ export default function AdminOrders() {
 
             {/* Customer info */}
             <div className="my-4 p-4 bg-gray-50 rounded-2xl space-y-1.5 text-xs text-gray-700">
-              <p className="font-bold text-sm text-gray-900">{selectedOrder.customerName}</p>
+              <div className="flex justify-between items-start">
+                <p className="font-bold text-sm text-gray-900">{selectedOrder.customerName}</p>
+                {selectedOrder.paymentMethod && (
+                  <span className="text-[10px] bg-emerald-50 text-emerald-800 font-bold px-2 py-0.5 rounded-full border border-emerald-200">
+                    {selectedOrder.paymentMethod}
+                  </span>
+                )}
+              </div>
               <p className="flex items-center gap-2 text-gray-600">
                 <Phone className="w-3.5 h-3.5 text-gray-400" />
                 <span>{selectedOrder.customerPhone}</span>
               </p>
-              {selectedOrder.customerAddress && (
+              {selectedOrder.customerEmail && (
                 <p className="flex items-center gap-2 text-gray-600">
-                  <MapPin className="w-3.5 h-3.5 text-gray-400" />
+                  <span className="w-3.5 h-3.5 text-gray-400 text-center font-bold">@</span>
+                  <span>{selectedOrder.customerEmail}</span>
+                </p>
+              )}
+              {selectedOrder.customerAddress && (
+                <p className="flex items-start gap-2 text-gray-600">
+                  <MapPin className="w-3.5 h-3.5 text-gray-400 mt-0.5 shrink-0" />
                   <span>{selectedOrder.customerAddress}</span>
                 </p>
               )}
+            </div>
+
+            {/* Delivery Status & DTDC Tracking Form */}
+            <div className="bg-[#FAF0F1]/60 border border-[#F5DCD0] rounded-2xl p-4 my-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Truck className="w-4 h-4 text-[#701A23]" />
+                  <span className="font-bold text-xs text-gray-900 uppercase tracking-wide">
+                    Delivery &amp; Courier Tracking
+                  </span>
+                </div>
+                {selectedOrder.trackingId && (
+                  <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-md">
+                    Tracking Active
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-600 mb-1">
+                    Delivery Status
+                  </label>
+                  <select
+                    value={trackingForm.status}
+                    onChange={(e) => setTrackingForm(prev => ({ ...prev, status: e.target.value }))}
+                    className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-800 focus:outline-none focus:border-[#701A23]"
+                  >
+                    <option value="Order Accepted">Order Accepted</option>
+                    <option value="Order Dispatched">Order Dispatched</option>
+                    <option value="Out for Delivery">Out for Delivery</option>
+                    <option value="Delivered">Delivered</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Cancelled">Cancelled</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-600 mb-1">
+                    Courier Partner
+                  </label>
+                  <input
+                    type="text"
+                    value={trackingForm.courierName}
+                    onChange={(e) => setTrackingForm(prev => ({ ...prev, courierName: e.target.value }))}
+                    placeholder="e.g. DTDC Express"
+                    className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-semibold text-gray-800 focus:outline-none focus:border-[#701A23]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-600 mb-1">
+                    DTDC Tracking / AWB ID
+                  </label>
+                  <input
+                    type="text"
+                    value={trackingForm.trackingId}
+                    onChange={(e) => setTrackingForm(prev => ({ ...prev, trackingId: e.target.value }))}
+                    placeholder="e.g. D58921044 / W982314"
+                    className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-900 focus:outline-none focus:border-[#701A23]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-600 mb-1">
+                    DTDC Tracking Website Link
+                  </label>
+                  <input
+                    type="text"
+                    value={trackingForm.trackingUrl}
+                    onChange={(e) => setTrackingForm(prev => ({ ...prev, trackingUrl: e.target.value }))}
+                    placeholder="https://track.dtdc.com/..."
+                    className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-medium text-gray-600 focus:outline-none focus:border-[#701A23]"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-1">
+                {trackingSuccess ? (
+                  <span className="text-[11px] font-bold text-emerald-700 flex items-center gap-1">
+                    <Check className="w-3.5 h-3.5 text-emerald-600" /> Tracking details updated!
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-gray-400">
+                    Customer will see live status &amp; tracking ID in their account.
+                  </span>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleSaveTracking}
+                  disabled={savingTracking}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-[#701A23] hover:bg-[#521117] text-white text-xs font-bold rounded-lg shadow-sm transition-all cursor-pointer disabled:opacity-60"
+                >
+                  {savingTracking ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                  <span>Save Tracking</span>
+                </button>
+              </div>
             </div>
 
             {/* Itemized List */}
@@ -336,7 +569,21 @@ export default function AdminOrders() {
                 <div key={i} className="flex justify-between items-center text-xs py-1.5">
                   <div className="flex-1 min-w-0 pr-2">
                     <p className="font-bold text-gray-800 truncate">{item.name}</p>
-                    <p className="text-[11px] text-gray-400">Qty: {item.quantity || 1} x ₹{Number(item.price).toLocaleString('en-IN')}</p>
+                    <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                      {item.selectedColor && (
+                        <span className="text-[10px] bg-blue-50 text-blue-800 font-bold px-1.5 py-0.2 rounded border border-blue-200">
+                          Color: {item.selectedColor}
+                        </span>
+                      )}
+                      {item.selectedSize && (
+                        <span className="text-[10px] bg-[#701A23]/10 text-[#701A23] font-bold px-1.5 py-0.2 rounded">
+                          Size: {item.selectedSize}
+                        </span>
+                      )}
+                      <span className="text-[11px] text-gray-500">
+                        Qty: {item.quantity || 1} x ₹{Number(item.price).toLocaleString('en-IN')}
+                      </span>
+                    </div>
                   </div>
                   <span className="font-bold text-[#701A23]">
                     ₹{((item.quantity || 1) * Number(item.price)).toLocaleString('en-IN')}
@@ -366,11 +613,131 @@ export default function AdminOrders() {
             <div className="mt-5 flex gap-3">
               <button
                 onClick={() => setSelectedOrder(null)}
-                className="w-full py-2.5 bg-gray-900 hover:bg-black text-white font-bold rounded-xl text-xs"
+                className="w-full py-2.5 bg-gray-900 hover:bg-black text-white font-bold rounded-xl text-xs cursor-pointer"
               >
                 Close Summary
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Quick DTDC Tracking & Dispatch Modal ───────────────────────── */}
+      {isTrackingModalOpen && selectedOrder && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl relative animate-fadeIn border border-gray-100">
+            <div className="flex items-center justify-between pb-4 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center">
+                  <Truck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-gray-900">
+                    DTDC Courier &amp; Tracking
+                  </h3>
+                  <p className="text-[11px] text-gray-500 font-mono">
+                    Order #{selectedOrder.id} · {selectedOrder.customerName}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsTrackingModalOpen(false)}
+                className="p-1.5 text-gray-400 hover:text-gray-700 rounded-lg cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveTracking} className="space-y-3.5 mt-4 text-xs">
+              {/* Delivery Status */}
+              <div>
+                <label className="block font-bold text-gray-700 uppercase tracking-wide mb-1">
+                  Delivery Status *
+                </label>
+                <select
+                  value={trackingForm.status}
+                  onChange={(e) => setTrackingForm(prev => ({ ...prev, status: e.target.value }))}
+                  className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-900 focus:bg-white focus:ring-2 focus:ring-[#701A23] focus:outline-none"
+                >
+                  <option value="Order Accepted">Order Accepted</option>
+                  <option value="Order Dispatched">Order Dispatched</option>
+                  <option value="Out for Delivery">Out for Delivery</option>
+                  <option value="Delivered">Delivered</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Cancelled">Cancelled</option>
+                </select>
+              </div>
+
+              {/* Courier Name */}
+              <div>
+                <label className="block font-bold text-gray-700 uppercase tracking-wide mb-1">
+                  Courier Partner Name
+                </label>
+                <input
+                  type="text"
+                  value={trackingForm.courierName}
+                  onChange={(e) => setTrackingForm(prev => ({ ...prev, courierName: e.target.value }))}
+                  placeholder="e.g. DTDC Express"
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold text-gray-800 focus:bg-white focus:ring-2 focus:ring-[#701A23] focus:outline-none"
+                />
+              </div>
+
+              {/* DTDC Tracking ID / AWB */}
+              <div>
+                <label className="block font-bold text-gray-700 uppercase tracking-wide mb-1">
+                  DTDC Tracking ID / AWB Number *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={trackingForm.trackingId}
+                  onChange={(e) => setTrackingForm(prev => ({ ...prev, trackingId: e.target.value }))}
+                  placeholder="Paste Tracking ID (e.g. D58921044 / W982314)"
+                  className="w-full px-3.5 py-2.5 bg-blue-50/50 border border-blue-200 rounded-xl text-xs font-mono font-bold text-gray-900 focus:bg-white focus:ring-2 focus:ring-[#701A23] focus:outline-none"
+                />
+                <p className="text-[10px] text-gray-400 mt-0.5">Customer can click to copy this tracking number in their account.</p>
+              </div>
+
+              {/* DTDC Tracking Website URL */}
+              <div>
+                <label className="block font-bold text-gray-700 uppercase tracking-wide mb-1">
+                  DTDC Tracking Website Link
+                </label>
+                <input
+                  type="text"
+                  value={trackingForm.trackingUrl}
+                  onChange={(e) => setTrackingForm(prev => ({ ...prev, trackingUrl: e.target.value }))}
+                  placeholder="https://track.dtdc.com/ctrk-tracking/tracker.html"
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium text-gray-700 focus:bg-white focus:ring-2 focus:ring-[#701A23] focus:outline-none"
+                />
+                <p className="text-[10px] text-gray-400 mt-0.5">When customer clicks "Track", it redirects to this website.</p>
+              </div>
+
+              {trackingSuccess && (
+                <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 animate-fadeIn">
+                  <Check className="w-4 h-4 text-emerald-600" />
+                  <span>Tracking details saved! Updated in customer account.</span>
+                </div>
+              )}
+
+              <div className="pt-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsTrackingModalOpen(false)}
+                  className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-bold text-xs transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingTracking}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-[#701A23] hover:bg-[#521117] text-white rounded-xl font-bold text-xs shadow-md transition-all cursor-pointer disabled:opacity-60"
+                >
+                  {savingTracking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  <span>Save &amp; Update Order</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

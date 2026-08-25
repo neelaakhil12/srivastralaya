@@ -11,6 +11,7 @@ import {
   RefreshCw,
   Plus,
   Truck,
+  Sliders,
   AlertTriangle,
   ChevronRight
 } from 'lucide-react';
@@ -111,13 +112,13 @@ export default function AdminDashboard({ onNavigateTab, onOpenNewProduct, onOpen
 
         <div className="relative z-10 flex flex-wrap items-center gap-3">
           <button
-            onClick={loadData}
-            disabled={loading}
+            onClick={() => onNavigateTab('sliders')}
             className="flex items-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition-all border border-white/20 cursor-pointer"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            <span>Refresh Data</span>
+            <Sliders className="w-4 h-4 text-[#D4AF37]" />
+            <span>Hero Sliders</span>
           </button>
+
           <button
             onClick={onOpenNewProduct}
             className="flex items-center gap-2 px-4 py-2.5 bg-[#D4AF37] hover:bg-[#bfa035] text-[#4A0E17] rounded-xl text-xs font-bold shadow-lg transition-all cursor-pointer"

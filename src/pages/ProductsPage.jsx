@@ -9,19 +9,20 @@ export default function ProductsPage({ selectedCategory, setSelectedCategory }) 
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('featured');
   const [maxPrice, setMaxPrice] = useState(2500);
-  const [productsList, setProductsList] = useState(initialProducts);
+  const [productsList, setProductsList] = useState([]);
   const [categoriesList, setCategoriesList] = useState(initialCategories);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadData() {
       try {
         setLoading(true);
         const [prods, cats] = await Promise.all([getProducts(), getCategories()]);
-        if (prods && prods.length > 0) setProductsList(prods);
+        setProductsList(Array.isArray(prods) ? prods : []);
         if (cats && cats.length > 0) setCategoriesList(cats);
       } catch (err) {
         console.warn('Could not load live store products:', err);
+        setProductsList([]);
       } finally {
         setLoading(false);
       }

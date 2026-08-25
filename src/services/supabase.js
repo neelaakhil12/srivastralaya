@@ -130,12 +130,10 @@ export async function getProducts() {
       .select('*')
       .order('created_at', { ascending: false });
 
-    if (error || !data || data.length === 0) {
-      if (!data || data.length === 0) {
-        await seedProductsIfEmpty();
-      }
-      baseList = defaultProducts;
-    } else {
+    if (error) {
+      console.warn('Supabase fetch products warning:', error.message);
+      baseList = [];
+    } else if (Array.isArray(data)) {
       baseList = data.map(item => ({
         id: item.id,
         name: item.name,
@@ -153,6 +151,9 @@ export async function getProducts() {
         image: item.image,
         images: Array.isArray(item.images) ? item.images : (item.images ? (typeof item.images === 'string' ? JSON.parse(item.images) : item.images) : [item.image]),
         sizes: Array.isArray(item.sizes) ? item.sizes : (item.sizes ? (typeof item.sizes === 'string' ? JSON.parse(item.sizes) : item.sizes) : []),
+        sizePrices: item.size_prices || item.sizePrices || (typeof item.size_prices === 'string' ? JSON.parse(item.size_prices) : null) || null,
+        specifications: Array.isArray(item.specifications) ? item.specifications : (item.specifications ? (typeof item.specifications === 'string' ? item.specifications.split('\n').map(s => s.replace(/^[•\-*]\s*/, '').trim()).filter(Boolean) : []) : (item.fabric || item.length ? [item.fabric, item.length].filter(Boolean) : [])),
+        colors: Array.isArray(item.colors) ? item.colors : (item.colors ? (typeof item.colors === 'string' ? JSON.parse(item.colors) : item.colors) : []),
         description: item.description || '',
         inStock: item.in_stock ?? true,
         fabric: item.fabric || '',
@@ -160,8 +161,8 @@ export async function getProducts() {
       }));
     }
   } catch (err) {
-    console.warn('Using default products fallback due to:', err);
-    baseList = defaultProducts;
+    console.warn('Database products error:', err);
+    baseList = [];
   }
 
   // Merge with local overrides
@@ -183,6 +184,12 @@ export async function getProducts() {
 export async function addProduct(product) {
   const localOverrides = getLocalOverrides();
   const generatedId = product.id || `sv-${Date.now()}`;
+  const specList = Array.isArray(product.specifications)
+    ? product.specifications
+    : (typeof product.specifications === 'string'
+      ? product.specifications.split('\n').map(s => s.replace(/^[•\-*]\s*/, '').trim()).filter(Boolean)
+      : []);
+
   const normalized = {
     ...product,
     id: generatedId,
@@ -193,7 +200,10 @@ export async function addProduct(product) {
     isBestSeller: product.isBestSeller ?? false,
     isTrending: product.isTrending ?? false,
     inStock: product.inStock ?? true,
-    sizes: product.sizes && product.sizes.length ? product.sizes : null
+    sizes: product.sizes && product.sizes.length ? product.sizes : null,
+    sizePrices: product.sizePrices || null,
+    colors: Array.isArray(product.colors) && product.colors.length ? product.colors : null,
+    specifications: specList
   };
 
   localOverrides[generatedId] = normalized;
@@ -212,6 +222,9 @@ export async function addProduct(product) {
     is_best_seller: product.isBestSeller ?? false,
     is_trending: product.isTrending ?? false,
     sizes: product.sizes && product.sizes.length ? product.sizes : null,
+    size_prices: product.sizePrices || null,
+    colors: Array.isArray(product.colors) && product.colors.length ? product.colors : null,
+    specifications: specList,
     rating: Number(product.rating) || 4.8,
     reviews_count: Number(product.reviewsCount) || 0,
     image: product.image,
@@ -232,11 +245,14 @@ export async function addProduct(product) {
     if (error) throw error;
     return data;
   } catch (err) {
-    if (err.message && (err.message.includes('is_best_seller') || err.message.includes('is_trending') || err.message.includes('sizes'))) {
+    if (err.message && (err.message.includes('is_best_seller') || err.message.includes('is_trending') || err.message.includes('sizes') || err.message.includes('size_prices') || err.message.includes('colors') || err.message.includes('specifications'))) {
       const fallbackPayload = { ...payload };
       delete fallbackPayload.is_best_seller;
       delete fallbackPayload.is_trending;
       delete fallbackPayload.sizes;
+      delete fallbackPayload.size_prices;
+      delete fallbackPayload.colors;
+      delete fallbackPayload.specifications;
       const { data, error } = await supabase
         .from('products')
         .upsert([fallbackPayload])
@@ -252,6 +268,12 @@ export async function addProduct(product) {
 
 export async function updateProduct(id, product) {
   const localOverrides = getLocalOverrides();
+  const specList = Array.isArray(product.specifications)
+    ? product.specifications
+    : (typeof product.specifications === 'string'
+      ? product.specifications.split('\n').map(s => s.replace(/^[•\-*]\s*/, '').trim()).filter(Boolean)
+      : []);
+
   const normalized = {
     ...(localOverrides[id] || {}),
     ...product,
@@ -263,7 +285,10 @@ export async function updateProduct(id, product) {
     isBestSeller: product.isBestSeller ?? false,
     isTrending: product.isTrending ?? false,
     inStock: product.inStock ?? true,
-    sizes: product.sizes && product.sizes.length ? product.sizes : null
+    sizes: product.sizes && product.sizes.length ? product.sizes : null,
+    sizePrices: product.sizePrices || null,
+    colors: Array.isArray(product.colors) && product.colors.length ? product.colors : null,
+    specifications: specList
   };
 
   localOverrides[id] = normalized;
@@ -277,15 +302,18 @@ export async function updateProduct(id, product) {
     price: Number(product.price),
     old_price: product.oldPrice ? Number(product.oldPrice) : null,
     discount: product.discount,
-    is_new: product.isNew,
-    is_featured: product.isFeatured,
+    is_new: product.isNew ?? false,
+    is_featured: product.isFeatured ?? false,
     is_best_seller: product.isBestSeller ?? false,
     is_trending: product.isTrending ?? false,
     sizes: product.sizes && product.sizes.length ? product.sizes : null,
-    rating: Number(product.rating) || 4.8,
-    reviews_count: Number(product.reviewsCount) || 0,
+    size_prices: product.sizePrices || null,
+    colors: Array.isArray(product.colors) && product.colors.length ? product.colors : null,
+    specifications: specList,
+    rating: Number(product.rating),
+    reviews_count: Number(product.reviewsCount),
     image: product.image,
-    images: product.images,
+    images: product.images && product.images.length ? product.images : [product.image],
     description: product.description,
     in_stock: product.inStock,
     fabric: product.fabric,
@@ -295,21 +323,26 @@ export async function updateProduct(id, product) {
   try {
     const { data, error } = await supabase
       .from('products')
-      .upsert([payload])
+      .update(payload)
+      .eq('id', id)
       .select()
       .single();
 
     if (error) throw error;
     return data;
   } catch (err) {
-    if (err.message && (err.message.includes('is_best_seller') || err.message.includes('is_trending') || err.message.includes('sizes'))) {
+    if (err.message && (err.message.includes('is_best_seller') || err.message.includes('is_trending') || err.message.includes('sizes') || err.message.includes('size_prices') || err.message.includes('colors') || err.message.includes('specifications'))) {
       const fallbackPayload = { ...payload };
       delete fallbackPayload.is_best_seller;
       delete fallbackPayload.is_trending;
       delete fallbackPayload.sizes;
+      delete fallbackPayload.size_prices;
+      delete fallbackPayload.colors;
+      delete fallbackPayload.specifications;
       const { data, error } = await supabase
         .from('products')
-        .upsert([fallbackPayload])
+        .update(fallbackPayload)
+        .eq('id', id)
         .select()
         .single();
       if (error) throw error;
@@ -362,12 +395,20 @@ export async function getOrders() {
       total: Number(item.total) || 0,
       status: item.status || 'Pending',
       paymentMethod: item.payment_method || 'COD',
+      trackingId: item.tracking_id || item.trackingId || '',
+      courierName: item.courier_name || item.courierName || 'DTDC Express',
+      trackingUrl: item.tracking_url || item.trackingUrl || 'https://track.dtdc.com/ctrk-tracking/tracker.html',
       notes: item.notes || '',
       createdAt: item.created_at
     }));
   } catch (err) {
-    console.warn('Orders fetch error, returning local cache/mock:', err);
-    return [];
+    console.warn('Orders fetch error, checking local fallback:', err);
+    try {
+      const local = JSON.parse(localStorage.getItem('sv_user_orders') || '[]');
+      return local;
+    } catch (e) {
+      return [];
+    }
   }
 }
 
@@ -385,32 +426,75 @@ export async function addOrder(order) {
     total: Number(order.total) || 0,
     status: order.status || 'Pending',
     payment_method: order.paymentMethod || 'WhatsApp / COD',
+    tracking_id: order.trackingId || '',
+    courier_name: order.courierName || 'DTDC Express',
+    tracking_url: order.trackingUrl || 'https://track.dtdc.com/ctrk-tracking/tracker.html',
     notes: order.notes || ''
   };
 
-  const { data, error } = await supabase
-    .from('orders')
-    .insert([payload])
-    .select()
-    .single();
+  try {
+    const { data, error } = await supabase
+      .from('orders')
+      .insert([payload])
+      .select()
+      .single();
 
-  if (error) {
-    console.error('Order save to Supabase error:', error);
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    // If tracking columns don't exist yet, retry without them
+    if (err.message && (err.message.includes('tracking_id') || err.message.includes('courier_name') || err.message.includes('tracking_url'))) {
+      const fallback = { ...payload };
+      delete fallback.tracking_id;
+      delete fallback.courier_name;
+      delete fallback.tracking_url;
+      const { data } = await supabase.from('orders').insert([fallback]).select().single();
+      return data || payload;
+    }
+    console.warn('Order save to Supabase warning:', err);
     return payload;
   }
-  return data;
 }
 
 export async function updateOrderStatus(id, status) {
-  const { data, error } = await supabase
-    .from('orders')
-    .update({ status: status })
-    .eq('id', id)
-    .select()
-    .single();
+  return updateOrderTracking(id, { status });
+}
 
-  if (error) throw error;
-  return data;
+export async function updateOrderTracking(id, { status, trackingId, courierName, trackingUrl }) {
+  const payload = {};
+  if (status !== undefined) payload.status = status;
+  if (trackingId !== undefined) payload.tracking_id = trackingId;
+  if (courierName !== undefined) payload.courier_name = courierName;
+  if (trackingUrl !== undefined) payload.tracking_url = trackingUrl;
+
+  try {
+    const { data, error } = await supabase
+      .from('orders')
+      .update(payload)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Sync local storage
+    try {
+      const local = JSON.parse(localStorage.getItem('sv_user_orders') || '[]');
+      const updated = local.map(o => o.id === id ? { ...o, ...payload, trackingId: trackingId ?? o.trackingId, courierName: courierName ?? o.courierName, trackingUrl: trackingUrl ?? o.trackingUrl, status: status || o.status } : o);
+      localStorage.setItem('sv_user_orders', JSON.stringify(updated));
+    } catch (e) {}
+
+    return data;
+  } catch (err) {
+    if (err.message && (err.message.includes('tracking_id') || err.message.includes('courier_name') || err.message.includes('tracking_url'))) {
+      const fallback = {};
+      if (status !== undefined) fallback.status = status;
+      const { data } = await supabase.from('orders').update(fallback).eq('id', id).select().single();
+      return data;
+    }
+    console.warn('updateOrderTracking warning:', err);
+    return payload;
+  }
 }
 
 export async function deleteOrder(id) {
