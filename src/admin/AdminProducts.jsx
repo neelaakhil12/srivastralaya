@@ -396,7 +396,18 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
       return;
     }
 
-    if (!formData.price) {
+    let calculatedPrice = Number(formData.price) || 0;
+    if (formData.hasSizes && formData.sizes && formData.sizes.length > 0) {
+      const validSizePrices = formData.sizes
+        .map(s => formData.sizePrices?.[s])
+        .filter(p => p !== undefined && p !== null && p !== '' && Number(p) > 0)
+        .map(Number);
+      if (validSizePrices.length > 0) {
+        calculatedPrice = validSizePrices[0];
+      }
+    }
+
+    if (!calculatedPrice && !formData.hasSizes) {
       setModalError('Product price is required');
       return;
     }
@@ -427,7 +438,7 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
       const payload = {
         ...formData,
         id: generatedId,
-        price: Number(formData.price),
+        price: calculatedPrice,
         oldPrice: formData.oldPrice ? Number(formData.oldPrice) : null,
         sizes: formData.hasSizes && formData.sizes.length > 0 ? formData.sizes : null,
         sizePrices: Object.keys(cleanedSizePrices).length > 0 ? cleanedSizePrices : null,
@@ -745,48 +756,50 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
                   </select>
                 </div>
 
-                {/* Price, Old Price & Discount */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <label className="block font-bold text-gray-700 uppercase mb-1">
-                      Selling Price (₹) *
-                    </label>
-                    <input
-                      type="number"
-                      required
-                      value={formData.price}
-                      onChange={(e) => handlePriceChange(e.target.value, formData.oldPrice)}
-                      placeholder="899"
-                      className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-[#701A23] focus:bg-white focus:ring-2 focus:ring-[#701A23] focus:outline-none"
-                    />
-                  </div>
+                {/* Price, Old Price & Discount (Hidden when size-specific pricing is enabled) */}
+                {!formData.hasSizes && (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 animate-fadeIn">
+                    <div>
+                      <label className="block font-bold text-gray-700 uppercase mb-1">
+                        Selling Price (₹) *
+                      </label>
+                      <input
+                        type="number"
+                        required={!formData.hasSizes}
+                        value={formData.price}
+                        onChange={(e) => handlePriceChange(e.target.value, formData.oldPrice)}
+                        placeholder="899"
+                        className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-[#701A23] focus:bg-white focus:ring-2 focus:ring-[#701A23] focus:outline-none"
+                      />
+                    </div>
 
-                  <div>
-                    <label className="block font-bold text-gray-700 uppercase mb-1">
-                      Original MRP (₹)
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.oldPrice}
-                      onChange={(e) => handlePriceChange(formData.price, e.target.value)}
-                      placeholder="1599"
-                      className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-600 focus:bg-white focus:ring-2 focus:ring-[#701A23] focus:outline-none"
-                    />
-                  </div>
+                    <div>
+                      <label className="block font-bold text-gray-700 uppercase mb-1">
+                        Original MRP (₹)
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.oldPrice}
+                        onChange={(e) => handlePriceChange(formData.price, e.target.value)}
+                        placeholder="1599"
+                        className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-600 focus:bg-white focus:ring-2 focus:ring-[#701A23] focus:outline-none"
+                      />
+                    </div>
 
-                  <div>
-                    <label className="block font-bold text-gray-700 uppercase mb-1">
-                      Discount Badge
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.discount}
-                      onChange={(e) => setFormData(prev => ({ ...prev, discount: e.target.value }))}
-                      placeholder="Auto or 43% OFF"
-                      className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold text-emerald-700 focus:bg-white focus:ring-2 focus:ring-[#701A23] focus:outline-none"
-                    />
+                    <div>
+                      <label className="block font-bold text-gray-700 uppercase mb-1">
+                        Discount Badge
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.discount}
+                        onChange={(e) => setFormData(prev => ({ ...prev, discount: e.target.value }))}
+                        placeholder="Auto or 43% OFF"
+                        className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold text-emerald-700 focus:bg-white focus:ring-2 focus:ring-[#701A23] focus:outline-none"
+                      />
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Cloudinary Main Image Upload */}
                 <div>
@@ -1300,10 +1313,10 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
                         <div className="p-3.5 bg-emerald-50/70 border border-emerald-200 rounded-xl space-y-2.5 animate-fadeIn">
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
                             <span className="text-xs font-bold text-emerald-950 uppercase flex items-center gap-1.5">
-                              💰 Set Price for each Size (Optional):
+                              💰 Set Selling Price for each Size (₹):
                             </span>
                             <span className="text-[10px] text-emerald-700 font-semibold">
-                              Empty = Base Price (₹{formData.price || 0})
+                              Customers will see & pay the specific price for their chosen size
                             </span>
                           </div>
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
@@ -1327,7 +1340,7 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
                                         }
                                       }));
                                     }}
-                                    placeholder={formData.price ? String(formData.price) : 'Price'}
+                                    placeholder="e.g. 899"
                                     className="w-full pl-6 pr-2 py-1.5 bg-gray-50 border border-gray-200 rounded-md text-xs font-bold text-gray-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                                   />
                                 </div>
