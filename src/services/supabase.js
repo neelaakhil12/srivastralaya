@@ -15,6 +15,7 @@ export async function getCategories() {
     const { data, error } = await supabase
       .from('categories')
       .select('*')
+      .neq('id', '__sys_settings')
       .order('name', { ascending: true });
 
     if (error || !data || data.length === 0) {
@@ -26,20 +27,54 @@ export async function getCategories() {
     }
 
     // Format fields (e.g., snake_case to camelCase mapping for consistency)
-    return data.map(item => ({
-      id: item.id,
-      name: item.name,
-      tagline: item.tagline || '',
-      description: item.description || '',
-      image: item.image || '/products/generic-product.png',
-      bannerImage: item.banner_image || item.image || '/products/generic-product.png',
-      itemCount: item.item_count || '0 Items',
-      featured: item.featured ?? false,
-      subcategories: Array.isArray(item.subcategories) ? item.subcategories : (item.subcategories ? JSON.parse(item.subcategories) : [])
-    }));
+    return data
+      .filter(item => item.id !== '__sys_settings')
+      .map(item => ({
+        id: item.id,
+        name: item.name,
+        tagline: item.tagline || '',
+        description: item.description || '',
+        image: item.image || '/products/generic-product.png',
+        bannerImage: item.banner_image || item.image || '/products/generic-product.png',
+        itemCount: item.item_count || '0 Items',
+        featured: item.featured ?? false,
+        subcategories: Array.isArray(item.subcategories) ? item.subcategories : (item.subcategories ? JSON.parse(item.subcategories) : [])
+      }));
   } catch (err) {
     console.warn('Using default categories fallback due to:', err);
     return defaultCategories;
+  }
+}
+
+// ==========================================
+// STORE CONFIG (SLIDERS & SHIPPING SYNC)
+// ==========================================
+export async function getStoreConfig() {
+  try {
+    const { data, error } = await supabase
+      .from('categories')
+      .select('subcategories')
+      .eq('id', '__sys_settings')
+      .maybeSingle();
+
+    if (error || !data || !data.subcategories) return null;
+    return typeof data.subcategories === 'string' ? JSON.parse(data.subcategories) : data.subcategories;
+  } catch (err) {
+    return null;
+  }
+}
+
+export async function saveStoreConfig(configObj) {
+  try {
+    const existing = await getStoreConfig() || {};
+    const merged = { ...existing, ...configObj };
+    await supabase.from('categories').upsert([{
+      id: '__sys_settings',
+      name: '__sys_settings',
+      subcategories: merged
+    }]);
+  } catch (err) {
+    console.warn('Supabase store config save warning:', err);
   }
 }
 

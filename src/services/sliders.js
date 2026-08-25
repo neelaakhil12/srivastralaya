@@ -1,6 +1,4 @@
-/**
- * Hero Sliders Management Service
- */
+import { getStoreConfig, saveStoreConfig } from './supabase';
 
 const DEFAULT_SLIDERS = [
   { id: 'slide-1', image: '/slider/image.png', title: 'Timeless Sarees Collection', subtitle: 'Handcrafted Elegance for Festive & Bridal Celebrations', link: 'sarees', active: true },
@@ -13,16 +11,33 @@ const DEFAULT_SLIDERS = [
   { id: 'slide-8', image: '/slider/image copy 7.png', title: 'Fashion Hair Accessories', subtitle: 'Unique Floral & Traditional Hair Decor', link: 'hair-accessories', active: true },
 ];
 
+// Async fetch from Supabase to sync across browsers
+export async function syncSlidersFromCloud() {
+  try {
+    const config = await getStoreConfig();
+    if (config && Array.isArray(config.sliders) && config.sliders.length > 0) {
+      localStorage.setItem('sv_hero_sliders', JSON.stringify(config.sliders));
+      if (config.sliderSettings) {
+        localStorage.setItem('sv_slider_settings', JSON.stringify(config.sliderSettings));
+      }
+      window.dispatchEvent(new Event('sv_sliders_updated'));
+      return config.sliders;
+    }
+  } catch (e) {}
+  return null;
+}
+
 export function getHeroSliders() {
+  // Trigger background cloud sync
+  syncSlidersFromCloud();
+
   try {
     const raw = localStorage.getItem('sv_hero_sliders');
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) return parsed;
     }
-  } catch (e) {
-    console.warn('Failed to parse hero sliders:', e);
-  }
+  } catch (e) {}
   return DEFAULT_SLIDERS;
 }
 
@@ -30,6 +45,8 @@ export function saveHeroSliders(sliders) {
   try {
     localStorage.setItem('sv_hero_sliders', JSON.stringify(sliders));
     window.dispatchEvent(new Event('sv_sliders_updated'));
+    // Persist to Supabase cloud
+    saveStoreConfig({ sliders });
   } catch (e) {
     console.error('Failed to save hero sliders:', e);
   }
@@ -50,6 +67,8 @@ export function saveSliderSettings(settings) {
   try {
     localStorage.setItem('sv_slider_settings', JSON.stringify(settings));
     window.dispatchEvent(new Event('sv_sliders_updated'));
+    // Persist to Supabase cloud
+    saveStoreConfig({ sliderSettings: settings });
   } catch (e) {
     console.error('Failed to save slider settings:', e);
   }

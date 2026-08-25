@@ -1,8 +1,23 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
+import { getStoreConfig, saveStoreConfig } from '../services/supabase';
+
 const CartContext = createContext();
 
+export const syncShippingFromCloud = async () => {
+  try {
+    const config = await getStoreConfig();
+    if (config && config.shipping) {
+      localStorage.setItem('sv_shipping_settings', JSON.stringify(config.shipping));
+      window.dispatchEvent(new Event('sv_shipping_updated'));
+      return config.shipping;
+    }
+  } catch (e) {}
+  return null;
+};
+
 export const getShippingSettings = () => {
+  syncShippingFromCloud();
   try {
     const raw = localStorage.getItem('sv_shipping_settings');
     if (raw) return JSON.parse(raw);
@@ -19,6 +34,7 @@ export const saveShippingSettings = (settings) => {
   try {
     localStorage.setItem('sv_shipping_settings', JSON.stringify(settings));
     window.dispatchEvent(new Event('sv_shipping_updated'));
+    saveStoreConfig({ shipping: settings });
   } catch (e) {
     console.error('Failed to save shipping settings:', e);
   }
