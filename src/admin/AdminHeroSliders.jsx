@@ -60,19 +60,26 @@ export default function AdminHeroSliders() {
   });
 
   useEffect(() => {
-    loadData();
-    window.addEventListener('sv_sliders_updated', loadData);
-    return () => window.removeEventListener('sv_sliders_updated', loadData);
-  }, []);
-
-  const loadData = async () => {
+    // 1. Initial load
     setSliders(getHeroSliders());
     setSettings(getSliderSettings());
-    const cloudSliders = await syncSlidersFromCloud();
-    if (cloudSliders && Array.isArray(cloudSliders) && cloudSliders.length > 0) {
-      setSliders(cloudSliders);
-    }
-  };
+
+    // 2. Background initial cloud fetch on mount
+    syncSlidersFromCloud().then(cloudSliders => {
+      if (cloudSliders && Array.isArray(cloudSliders) && cloudSliders.length > 0) {
+        setSliders(cloudSliders);
+      }
+    });
+
+    // 3. Instant local update listener (0ms delay)
+    const handleLocalUpdate = () => {
+      setSliders(getHeroSliders());
+      setSettings(getSliderSettings());
+    };
+
+    window.addEventListener('sv_sliders_updated', handleLocalUpdate);
+    return () => window.removeEventListener('sv_sliders_updated', handleLocalUpdate);
+  }, []);
 
   const showSuccess = (msg) => {
     setSuccessToast(msg);

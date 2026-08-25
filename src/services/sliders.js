@@ -11,8 +11,14 @@ const DEFAULT_SLIDERS = [
   { id: 'slide-8', image: '/slider/image copy 7.png', title: 'Fashion Hair Accessories', subtitle: 'Unique Floral & Traditional Hair Decor', link: 'hair-accessories', active: true },
 ];
 
+let lastLocalSaveTime = 0;
+
 // Async fetch from Supabase to sync across browsers
 export async function syncSlidersFromCloud() {
+  // Prevent stale cloud read from overriding immediate local user saves
+  if (Date.now() - lastLocalSaveTime < 10000) {
+    return null;
+  }
   try {
     const config = await getStoreConfig();
     if (config && Array.isArray(config.sliders) && config.sliders.length > 0) {
@@ -20,7 +26,6 @@ export async function syncSlidersFromCloud() {
       if (config.sliderSettings) {
         localStorage.setItem('sv_slider_settings', JSON.stringify(config.sliderSettings));
       }
-      window.dispatchEvent(new Event('sv_sliders_updated'));
       return config.sliders;
     }
   } catch (e) {}
@@ -28,9 +33,6 @@ export async function syncSlidersFromCloud() {
 }
 
 export function getHeroSliders() {
-  // Trigger background cloud sync
-  syncSlidersFromCloud();
-
   try {
     const raw = localStorage.getItem('sv_hero_sliders');
     if (raw) {
@@ -43,6 +45,7 @@ export function getHeroSliders() {
 
 export function saveHeroSliders(sliders) {
   try {
+    lastLocalSaveTime = Date.now();
     // 1. Instant local persistence & UI broadcast (0ms delay)
     localStorage.setItem('sv_hero_sliders', JSON.stringify(sliders));
     window.dispatchEvent(new Event('sv_sliders_updated'));
