@@ -161,6 +161,75 @@ export function viteApiPlugin() {
           }
         }
 
+        // Razorpay create order
+        if (url === '/api/razorpay/create-order' && req.method === 'POST') {
+          try {
+            const body = await parseBody(req);
+            const { amount, currency = 'INR', receipt, notes } = body;
+            const keyId = process.env.RAZORPAY_KEY_ID || 'rzp_test_TTxuY6jG2BTZS5';
+            const keySecret = process.env.RAZORPAY_KEY_SECRET || 'gbrnL9PsaDpECuwqNGlX2u1F';
+            const amountInPaise = Math.round(Number(amount) * 100);
+            const authHeader = 'Basic ' + Buffer.from(`${keyId}:${keySecret}`).toString('base64');
+
+            const rzpRes = await fetch('https://api.razorpay.com/v1/orders', {
+              method: 'POST',
+              headers: {
+                'Authorization': authHeader,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                amount: amountInPaise,
+                currency,
+                receipt: receipt || `ORD-${Date.now()}`,
+                notes: notes || {}
+              })
+            });
+
+            const rzpData = await rzpRes.json();
+            if (!rzpRes.ok || !rzpData.id) {
+              return sendJson(res, rzpRes.status || 500, {
+                success: false,
+                message: rzpData.error?.description || 'Failed to create Razorpay order'
+              });
+            }
+
+            return sendJson(res, 200, {
+              success: true,
+              orderId: rzpData.id,
+              amount: rzpData.amount,
+              currency: rzpData.currency,
+              keyId: keyId
+            });
+          } catch (err) {
+            console.error('Razorpay create-order error:', err);
+            return sendJson(res, 500, { success: false, message: err.message });
+          }
+        }
+
+        // Razorpay verify payment
+        if (url === '/api/razorpay/verify-payment' && req.method === 'POST') {
+          try {
+            const body = await parseBody(req);
+            const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = body;
+            const keySecret = process.env.RAZORPAY_KEY_SECRET || 'gbrnL9PsaDpECuwqNGlX2u1F';
+
+            if (razorpay_order_id && razorpay_signature) {
+              const generatedSignature = crypto
+                .createHmac('sha256', keySecret)
+                .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+                .digest('hex');
+
+              if (generatedSignature !== razorpay_signature) {
+                return sendJson(res, 400, { success: false, message: 'Invalid payment signature' });
+              }
+            }
+
+            return sendJson(res, 200, { success: true, verified: true, paymentId: razorpay_payment_id });
+          } catch (err) {
+            return sendJson(res, 500, { success: false, message: err.message });
+          }
+        }
+
         // 3. Admin login
         if (url === '/api/admin/login' && req.method === 'POST') {
           try {

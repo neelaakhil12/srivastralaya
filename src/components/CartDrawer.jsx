@@ -171,8 +171,17 @@ export default function CartDrawer({ setActivePage }) {
           }
         })
       });
-      const data = await res.json();
-      if (!data.success) throw new Error(data.message || 'Failed to create payment order');
+
+      let data = {};
+      try {
+        data = await res.json();
+      } catch (jsonErr) {
+        throw new Error('Payment gateway service error. Please try again.');
+      }
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Failed to create payment order. Please try again.');
+      }
 
       setPayLoading(false);
 
