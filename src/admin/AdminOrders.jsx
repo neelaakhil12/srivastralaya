@@ -28,8 +28,7 @@ export default function AdminOrders({ onNavigateShipping }) {
   const [trackingForm, setTrackingForm] = useState({
     status: '',
     courierName: 'DTDC Express',
-    trackingId: '',
-    trackingUrl: ''
+    trackingId: ''
   });
   const [savingTracking, setSavingTracking] = useState(false);
   const [trackingSuccess, setTrackingSuccess] = useState(false);
@@ -55,8 +54,7 @@ export default function AdminOrders({ onNavigateShipping }) {
     setTrackingForm({
       status: forcedStatus || order.status || 'Order Dispatched',
       courierName: order.courierName || 'DTDC Express',
-      trackingId: order.trackingId || '',
-      trackingUrl: order.trackingUrl || ''
+      trackingId: order.trackingId || ''
     });
     setTrackingSuccess(false);
     setIsTrackingModalOpen(true);
@@ -67,8 +65,7 @@ export default function AdminOrders({ onNavigateShipping }) {
     setTrackingForm({
       status: order.status || 'Order Accepted',
       courierName: order.courierName || 'DTDC Express',
-      trackingId: order.trackingId || '',
-      trackingUrl: order.trackingUrl || ''
+      trackingId: order.trackingId || ''
     });
     setTrackingSuccess(false);
   };
@@ -83,8 +80,7 @@ export default function AdminOrders({ onNavigateShipping }) {
       const payload = {
         status: trackingForm.status,
         courierName: trackingForm.courierName || 'DTDC Express',
-        trackingId: trackingForm.trackingId.trim(),
-        trackingUrl: trackingForm.trackingUrl.trim() || ''
+        trackingId: trackingForm.trackingId.trim()
       };
 
       await updateOrderTracking(selectedOrder.id, payload);
@@ -519,7 +515,7 @@ export default function AdminOrders({ onNavigateShipping }) {
                   />
                 </div>
 
-                <div>
+                <div className="sm:col-span-2">
                   <label className="block text-[11px] font-bold text-gray-600 mb-1">
                     DTDC Tracking / AWB ID
                   </label>
@@ -529,19 +525,6 @@ export default function AdminOrders({ onNavigateShipping }) {
                     onChange={(e) => setTrackingForm(prev => ({ ...prev, trackingId: e.target.value }))}
                     placeholder="e.g. D58921044 / W982314"
                     className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-900 focus:outline-none focus:border-[#701A23]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-gray-600 mb-1">
-                    DTDC Tracking Website Link
-                  </label>
-                  <input
-                    type="text"
-                    value={trackingForm.trackingUrl}
-                    onChange={(e) => setTrackingForm(prev => ({ ...prev, trackingUrl: e.target.value }))}
-                    placeholder="https://track.dtdc.com/..."
-                    className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-medium text-gray-600 focus:outline-none focus:border-[#701A23]"
                   />
                 </div>
               </div>
@@ -703,21 +686,6 @@ export default function AdminOrders({ onNavigateShipping }) {
                   className="w-full px-3.5 py-2.5 bg-blue-50/50 border border-blue-200 rounded-xl text-xs font-mono font-bold text-gray-900 focus:bg-white focus:ring-2 focus:ring-[#701A23] focus:outline-none"
                 />
                 <p className="text-[10px] text-gray-400 mt-0.5">Customer can click to copy this tracking number in their account.</p>
-              </div>
-
-              {/* DTDC Tracking Website URL */}
-              <div>
-                <label className="block font-bold text-gray-700 uppercase tracking-wide mb-1">
-                  DTDC Tracking Website Link
-                </label>
-                <input
-                  type="text"
-                  value={trackingForm.trackingUrl}
-                  onChange={(e) => setTrackingForm(prev => ({ ...prev, trackingUrl: e.target.value }))}
-                  placeholder="https://track.dtdc.com/ctrk-tracking/tracker.html"
-                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium text-gray-700 focus:bg-white focus:ring-2 focus:ring-[#701A23] focus:outline-none"
-                />
-                <p className="text-[10px] text-gray-400 mt-0.5">When customer clicks "Track", it redirects to this website.</p>
               </div>
 
               {trackingSuccess && (
