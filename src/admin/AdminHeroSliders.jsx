@@ -25,6 +25,8 @@ import {
 } from '../services/sliders';
 import { uploadToCloudinary } from '../services/cloudinary';
 
+import { compressImage } from '../utils/compressImage';
+
 const CATEGORY_OPTIONS = [
   { value: 'products', label: 'All Products / Shop' },
   { value: 'sarees', label: 'Sarees Collection' },
@@ -44,6 +46,7 @@ export default function AdminHeroSliders() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadSuccess, setUploadSuccess] = useState(false);
   const [successToast, setSuccessToast] = useState('');
 
   // Slide Form State
@@ -78,6 +81,7 @@ export default function AdminHeroSliders() {
 
   const handleOpenAdd = () => {
     setEditingIndex(null);
+    setUploadSuccess(false);
     setFormData({
       id: `slide-${Date.now()}`,
       image: '',
@@ -91,6 +95,7 @@ export default function AdminHeroSliders() {
 
   const handleOpenEdit = (index) => {
     setEditingIndex(index);
+    setUploadSuccess(false);
     setFormData({ ...sliders[index] });
     setIsModalOpen(true);
   };
@@ -100,27 +105,28 @@ export default function AdminHeroSliders() {
     if (!file) return;
 
     setUploadingImage(true);
+    setUploadSuccess(false);
 
-    // 1. Instant local preview via FileReader
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      const localDataUrl = event.target.result;
-      setFormData(prev => ({ ...prev, image: localDataUrl }));
+    try {
+      // 1. Optimize / compress image before Cloudinary upload
+      const compressed = await compressImage(file, 1920, 1080, 0.88);
 
-      // 2. Try Cloudinary upload in background
-      try {
-        const cloudUrl = await uploadToCloudinary(file, 'hero-sliders');
-        if (cloudUrl) {
-          setFormData(prev => ({ ...prev, image: cloudUrl }));
-        }
-      } catch (err) {
-        console.warn('Using local image payload:', err);
-      } finally {
-        setUploadingImage(false);
+      // 2. Upload to Cloudinary (cloud: k1vemtdl)
+      const cloudUrl = await uploadToCloudinary(compressed || file, 'sri-vastralaya/sliders');
+      if (cloudUrl) {
+        setFormData(prev => ({ ...prev, image: cloudUrl }));
+        setUploadSuccess(cloudUrl.includes('cloudinary.com'));
       }
-    };
-    reader.onerror = () => setUploadingImage(false);
-    reader.readAsDataURL(file);
+    } catch (err) {
+      console.error('Cloudinary upload error:', err);
+      // Resilient local fallback
+      const localUrl = await compressImage(file, 1600, 900, 0.85);
+      if (localUrl) {
+        setFormData(prev => ({ ...prev, image: localUrl }));
+      }
+    } finally {
+      setUploadingImage(false);
+    }
   };
 
   const handleSaveSlide = async (e) => {
@@ -401,7 +407,7 @@ export default function AdminHeroSliders() {
                       ) : (
                         <Upload className="w-4 h-4" />
                       )}
-                      <span>{uploadingImage ? 'Uploading Image...' : 'Upload Image from Computer'}</span>
+                      <span>{uploadingImage ? 'Uploading to Cloudinary...' : 'Upload Image to Cloudinary'}</span>
                       <input
                         type="file"
                         accept="image/*"
@@ -411,12 +417,19 @@ export default function AdminHeroSliders() {
                     </label>
                   </div>
 
+                  {formData.image && formData.image.includes('cloudinary') && (
+                    <div className="flex items-center gap-1.5 text-emerald-700 font-bold text-[11px] bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Saved in Cloudinary (cloud: k1vemtdl)</span>
+                    </div>
+                  )}
+
                   <div className="relative">
                     <input
                       type="text"
                       value={formData.image}
                       onChange={(e) => setFormData(prev => ({ ...prev, image: e.target.value }))}
-                      placeholder="Or paste image URL (e.g. /slider/image.png or https://...)"
+                      placeholder="Or paste Cloudinary image URL (https://res.cloudinary.com/...)"
                       className="w-full px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-mono text-gray-900 focus:bg-white focus:ring-2 focus:ring-[#701A23] focus:outline-none"
                     />
                   </div>

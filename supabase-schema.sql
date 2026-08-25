@@ -128,3 +128,22 @@ ALTER TABLE public.user_otps ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow public access users" ON public.users FOR ALL USING (true);
 CREATE POLICY "Allow public access user_otps" ON public.user_otps FOR ALL USING (true);
 
+-- 7. HERO SLIDERS TABLE
+CREATE TABLE IF NOT EXISTS public.hero_sliders (
+    id TEXT PRIMARY KEY,
+    image TEXT NOT NULL,
+    title TEXT,
+    subtitle TEXT,
+    link TEXT DEFAULT 'products',
+    active BOOLEAN DEFAULT true,
+    display_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.hero_sliders ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow public select hero_sliders" ON public.hero_sliders FOR SELECT USING (true);
+CREATE POLICY "Allow public insert hero_sliders" ON public.hero_sliders FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update hero_sliders" ON public.hero_sliders FOR UPDATE USING (true);
+CREATE POLICY "Allow public delete hero_sliders" ON public.hero_sliders FOR DELETE USING (true);
+
+
