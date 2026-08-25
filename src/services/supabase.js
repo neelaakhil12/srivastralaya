@@ -383,7 +383,7 @@ export async function getOrders() {
       paymentMethod: item.payment_method || 'COD',
       trackingId: item.tracking_id || item.trackingId || '',
       courierName: item.courier_name || item.courierName || 'DTDC Express',
-      trackingUrl: item.tracking_url || item.trackingUrl || 'https://track.dtdc.com/ctrk-tracking/tracker.html',
+      trackingUrl: item.tracking_url || item.trackingUrl || '',
       notes: item.notes || '',
       createdAt: item.created_at
     }));
@@ -414,7 +414,7 @@ export async function addOrder(order) {
     payment_method: order.paymentMethod || 'WhatsApp / COD',
     tracking_id: order.trackingId || '',
     courier_name: order.courierName || 'DTDC Express',
-    tracking_url: order.trackingUrl || 'https://track.dtdc.com/ctrk-tracking/tracker.html',
+    tracking_url: order.trackingUrl || '',
     notes: order.notes || ''
   };
 

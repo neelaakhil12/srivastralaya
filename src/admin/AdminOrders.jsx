@@ -29,23 +29,10 @@ export default function AdminOrders({ onNavigateShipping }) {
     status: '',
     courierName: 'DTDC Express',
     trackingId: '',
-    trackingUrl: 'https://track.dtdc.com/ctrk-tracking/tracker.html'
+    trackingUrl: ''
   });
   const [savingTracking, setSavingTracking] = useState(false);
   const [trackingSuccess, setTrackingSuccess] = useState(false);
-
-  // New Manual Order Modal
-  const [isManualModalOpen, setIsManualModalOpen] = useState(false);
-  const [manualFormData, setManualFormData] = useState({
-    customerName: '',
-    customerPhone: '',
-    customerAddress: '',
-    itemTitle: '',
-    itemPrice: '',
-    quantity: 1,
-    paymentMethod: 'Cash on Delivery / UPI'
-  });
-  const [submittingManual, setSubmittingManual] = useState(false);
 
   useEffect(() => {
     fetchOrdersList();
@@ -69,7 +56,7 @@ export default function AdminOrders({ onNavigateShipping }) {
       status: forcedStatus || order.status || 'Order Dispatched',
       courierName: order.courierName || 'DTDC Express',
       trackingId: order.trackingId || '',
-      trackingUrl: order.trackingUrl || 'https://track.dtdc.com/ctrk-tracking/tracker.html'
+      trackingUrl: order.trackingUrl || ''
     });
     setTrackingSuccess(false);
     setIsTrackingModalOpen(true);
@@ -81,7 +68,7 @@ export default function AdminOrders({ onNavigateShipping }) {
       status: order.status || 'Order Accepted',
       courierName: order.courierName || 'DTDC Express',
       trackingId: order.trackingId || '',
-      trackingUrl: order.trackingUrl || 'https://track.dtdc.com/ctrk-tracking/tracker.html'
+      trackingUrl: order.trackingUrl || ''
     });
     setTrackingSuccess(false);
   };
@@ -97,7 +84,7 @@ export default function AdminOrders({ onNavigateShipping }) {
         status: trackingForm.status,
         courierName: trackingForm.courierName || 'DTDC Express',
         trackingId: trackingForm.trackingId.trim(),
-        trackingUrl: trackingForm.trackingUrl.trim() || 'https://track.dtdc.com/ctrk-tracking/tracker.html'
+        trackingUrl: trackingForm.trackingUrl.trim() || ''
       };
 
       await updateOrderTracking(selectedOrder.id, payload);
@@ -151,55 +138,6 @@ export default function AdminOrders({ onNavigateShipping }) {
     }
   };
 
-  const handleCreateManualOrder = async (e) => {
-    e.preventDefault();
-    setSubmittingManual(true);
-    try {
-      const price = Number(manualFormData.itemPrice) || 0;
-      const qty = Number(manualFormData.quantity) || 1;
-      const total = price * qty;
-
-      const orderPayload = {
-        id: `MAN-${Date.now().toString().slice(-6)}`,
-        customerName: manualFormData.customerName,
-        customerPhone: manualFormData.customerPhone,
-        customerAddress: manualFormData.customerAddress,
-        items: [
-          {
-            id: 'item-custom',
-            name: manualFormData.itemTitle,
-            price: price,
-            quantity: qty
-          }
-        ],
-        subtotal: total,
-        discount: 0,
-        shipping: 0,
-        total: total,
-        status: 'Completed',
-        paymentMethod: manualFormData.paymentMethod,
-        notes: 'In-Store / Direct WhatsApp Booking'
-      };
-
-      await addOrder(orderPayload);
-      await fetchOrdersList();
-      setIsManualModalOpen(false);
-      setManualFormData({
-        customerName: '',
-        customerPhone: '',
-        customerAddress: '',
-        itemTitle: '',
-        itemPrice: '',
-        quantity: 1,
-        paymentMethod: 'Cash on Delivery / UPI'
-      });
-    } catch (err) {
-      alert('Failed to add manual order: ' + err.message);
-    } finally {
-      setSubmittingManual(false);
-    }
-  };
-
   const filteredOrders = orders.filter(order => {
     const matchesSearch = (order.id && order.id.toLowerCase().includes(searchQuery.toLowerCase())) ||
                           (order.customerName && order.customerName.toLowerCase().includes(searchQuery.toLowerCase())) ||
@@ -234,24 +172,16 @@ export default function AdminOrders({ onNavigateShipping }) {
                 <span>Shipping Charges</span>
               </button>
             )}
-
-            <button
-              onClick={() => setIsManualModalOpen(true)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-[#701A23] hover:bg-[#521117] text-white rounded-xl text-xs font-bold shadow-md transition-all cursor-pointer whitespace-nowrap"
-            >
-              <Plus className="w-4 h-4 text-[#D4AF37]" />
-              <span>Create Manual Order</span>
-            </button>
           </div>
         </div>
 
         {/* Filters */}
         <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-gray-100">
-          <div className="relative flex-1 min-w-[220px]">
+          <div className="relative flex-1 min-w-[180px]">
             <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search by order ID, customer name or phone..."
+              placeholder="Search order ID, customer or phone..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#701A23]"
@@ -264,15 +194,17 @@ export default function AdminOrders({ onNavigateShipping }) {
             className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#701A23]"
           >
             <option value="all">All Order Statuses</option>
+            <option value="Order Accepted">Order Accepted</option>
+            <option value="Order Dispatched">Order Dispatched</option>
+            <option value="Out for Delivery">Out for Delivery</option>
+            <option value="Delivered">Delivered</option>
             <option value="Pending">Pending</option>
-            <option value="Processing">Processing</option>
-            <option value="Completed">Completed</option>
             <option value="Cancelled">Cancelled</option>
           </select>
         </div>
       </div>
 
-      {/* Orders Table */}
+      {/* Orders List / Table */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         {loading ? (
           <div className="py-20 text-center flex flex-col items-center justify-center text-gray-400">
@@ -280,140 +212,215 @@ export default function AdminOrders({ onNavigateShipping }) {
             <p className="text-xs font-medium">Fetching orders from Supabase...</p>
           </div>
         ) : filteredOrders.length === 0 ? (
-          <div className="py-16 text-center text-gray-400">
+          <div className="py-16 text-center text-gray-400 px-4">
             <ShoppingBag className="w-12 h-12 mx-auto mb-2 text-gray-300" />
             <p className="text-sm font-bold text-gray-700">No orders found</p>
-            <p className="text-xs text-gray-500 mt-1">Orders placed on WhatsApp or website will appear here.</p>
+            <p className="text-xs text-gray-500 mt-1">Customer orders placed online or via WhatsApp will appear here.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-[#FAF0F1]/50 border-b border-gray-100 text-gray-500 uppercase tracking-wider font-semibold">
-                <tr>
-                  <th className="py-3.5 px-4">Order ID</th>
-                  <th className="py-3.5 px-4">Customer Details</th>
-                  <th className="py-3.5 px-4">Items Count</th>
-                  <th className="py-3.5 px-4">Total Amount</th>
-                  <th className="py-3.5 px-4">Date</th>
-                  <th className="py-3.5 px-4">Status</th>
-                  <th className="py-3.5 px-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {filteredOrders.map((order) => (
-                  <tr key={order.id} className="hover:bg-gray-50/60 transition-colors">
-                    {/* Order ID */}
-                    <td className="py-3.5 px-4 font-mono font-bold text-gray-900">
-                      #{order.id}
-                    </td>
+          <>
+            {/* Mobile Cards View (Visible on small screens) */}
+            <div className="block md:hidden divide-y divide-gray-100">
+              {filteredOrders.map((order) => (
+                <div key={order.id} className="p-4 space-y-3 hover:bg-gray-50/60 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="font-mono font-bold text-gray-900 text-xs">#{order.id}</span>
+                      <p className="text-[11px] text-gray-400">
+                        {order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Today'}
+                      </p>
+                    </div>
+                    <span className="font-extrabold text-sm text-[#701A23]">
+                      ₹{Number(order.total).toLocaleString('en-IN')}
+                    </span>
+                  </div>
 
-                    {/* Customer */}
-                    <td className="py-3.5 px-4">
-                      <p className="font-bold text-gray-900">{order.customerName || 'WhatsApp Customer'}</p>
-                      <p className="text-[11px] text-gray-400 flex items-center gap-1 mt-0.5">
-                        <Phone className="w-3 h-3" />
+                  <div className="flex justify-between items-center text-xs">
+                    <div>
+                      <p className="font-bold text-gray-900">{order.customerName || 'Customer'}</p>
+                      <p className="text-[11px] text-gray-500 flex items-center gap-1">
+                        <Phone className="w-3 h-3 text-gray-400" />
                         <span>{order.customerPhone || 'N/A'}</span>
                       </p>
-                    </td>
-
-                    {/* Items */}
-                    <td className="py-3.5 px-4 font-medium text-gray-700">
+                    </div>
+                    <span className="text-gray-500 text-[11px] bg-gray-100 px-2 py-0.5 rounded-md">
                       {order.items?.length || 1} items
-                    </td>
+                    </span>
+                  </div>
 
-                    {/* Amount */}
-                    <td className="py-3.5 px-4">
-                      <span className="font-extrabold text-sm text-[#701A23]">
-                        ₹{Number(order.total).toLocaleString('en-IN')}
-                      </span>
-                    </td>
+                  {/* Mobile Status Dropdown & DTDC tracking */}
+                  <div className="space-y-1.5 pt-1">
+                    <select
+                      value={order.status}
+                      onChange={(e) => handleStatusChange(order, e.target.value)}
+                      className={`w-full text-xs font-bold rounded-xl px-3 py-2 border focus:outline-none cursor-pointer ${
+                        order.status === 'Delivered' || order.status === 'Completed'
+                          ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                          : order.status === 'Out for Delivery'
+                          ? 'bg-purple-50 text-purple-800 border-purple-200'
+                          : order.status === 'Order Dispatched' || order.status === 'Dispatched'
+                          ? 'bg-indigo-50 text-indigo-800 border-indigo-200'
+                          : order.status === 'Order Accepted'
+                          ? 'bg-blue-50 text-blue-800 border-blue-200'
+                          : order.status === 'Cancelled'
+                          ? 'bg-red-50 text-red-800 border-red-200'
+                          : 'bg-amber-50 text-amber-800 border-amber-200'
+                      }`}
+                    >
+                      <option value="Order Accepted">Order Accepted</option>
+                      <option value="Order Dispatched">Order Dispatched</option>
+                      <option value="Out for Delivery">Out for Delivery</option>
+                      <option value="Delivered">Delivered</option>
+                      <option value="Pending">Pending</option>
+                      <option value="Cancelled">Cancelled</option>
+                    </select>
 
-                    {/* Date */}
-                    <td className="py-3.5 px-4 text-gray-500 text-[11px]">
-                      {order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-IN', {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric'
-                      }) : 'Today'}
-                    </td>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleOpenTrackingModal(order)}
+                        className="flex-1 flex items-center justify-center gap-1 text-[11px] font-bold text-blue-800 bg-blue-50 hover:bg-blue-100 py-1.5 px-3 rounded-xl border border-blue-200 transition-colors"
+                      >
+                        <Truck className="w-3.5 h-3.5 text-blue-600" />
+                        <span>{order.trackingId ? `DTDC: ${order.trackingId}` : '+ Set DTDC Tracking'}</span>
+                      </button>
 
-                    {/* Status Dropdown & DTDC Tracking Shortcut */}
-                    <td className="py-3.5 px-4">
-                      <div className="space-y-1.5 min-w-[150px]">
-                        <select
-                          value={order.status}
-                          onChange={(e) => handleStatusChange(order, e.target.value)}
-                          className={`w-full text-[11px] font-bold rounded-lg px-2.5 py-1.5 border focus:outline-none cursor-pointer ${
-                            order.status === 'Delivered' || order.status === 'Completed'
-                              ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                              : order.status === 'Out for Delivery'
-                              ? 'bg-purple-50 text-purple-800 border-purple-200'
-                              : order.status === 'Order Dispatched' || order.status === 'Dispatched'
-                              ? 'bg-indigo-50 text-indigo-800 border-indigo-200'
-                              : order.status === 'Order Accepted'
-                              ? 'bg-blue-50 text-blue-800 border-blue-200'
-                              : order.status === 'Cancelled'
-                              ? 'bg-red-50 text-red-800 border-red-200'
-                              : 'bg-amber-50 text-amber-800 border-amber-200'
-                          }`}
-                        >
-                          <option value="Order Accepted">Order Accepted</option>
-                          <option value="Order Dispatched">Order Dispatched</option>
-                          <option value="Out for Delivery">Out for Delivery</option>
-                          <option value="Delivered">Delivered</option>
-                          <option value="Pending">Pending</option>
-                          <option value="Cancelled">Cancelled</option>
-                        </select>
+                      <button
+                        onClick={() => handleOpenOrderDetails(order)}
+                        className="p-2 text-gray-700 bg-gray-100 hover:bg-[#FAF0F1] hover:text-[#701A23] rounded-xl transition-colors"
+                        title="View Details"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
 
-                        {/* DTDC Tracking Badge / Button */}
-                        {order.trackingId ? (
-                          <button
-                            onClick={() => handleOpenTrackingModal(order)}
-                            className="w-full flex items-center justify-between text-[10px] font-bold text-blue-800 bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded-md border border-blue-200 transition-colors cursor-pointer"
-                            title="Click to edit DTDC tracking details"
-                          >
-                            <span className="flex items-center gap-1">
-                              <Truck className="w-3 h-3 text-blue-600" />
-                              <span>DTDC: {order.trackingId}</span>
-                            </span>
-                            <span className="text-[9px] text-blue-600 underline">Edit</span>
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handleOpenTrackingModal(order)}
-                            className="w-full flex items-center justify-center gap-1 text-[10px] font-semibold text-gray-500 hover:text-[#701A23] bg-gray-50 hover:bg-[#FAF0F1] px-2 py-0.5 rounded border border-gray-200 transition-colors cursor-pointer"
-                          >
-                            <Truck className="w-3 h-3 text-gray-400" />
-                            <span>+ Set DTDC Tracking</span>
-                          </button>
-                        )}
-                      </div>
-                    </td>
+                      <button
+                        onClick={() => handleDelete(order.id)}
+                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+                        title="Delete"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
 
-                    {/* Actions */}
-                    <td className="py-3.5 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <button
-                          onClick={() => handleOpenOrderDetails(order)}
-                          className="p-1.5 text-gray-600 hover:text-[#701A23] hover:bg-[#FAF0F1] rounded-lg transition-colors cursor-pointer"
-                          title="View Invoice & Items"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(order.id)}
-                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-                          title="Delete Order"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
+            {/* Desktop Table View (Visible on tablets & desktop) */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-[#FAF0F1]/50 border-b border-gray-100 text-gray-500 uppercase tracking-wider font-semibold">
+                  <tr>
+                    <th className="py-3.5 px-4">Order ID</th>
+                    <th className="py-3.5 px-4">Customer Details</th>
+                    <th className="py-3.5 px-4">Items Count</th>
+                    <th className="py-3.5 px-4">Total Amount</th>
+                    <th className="py-3.5 px-4">Date</th>
+                    <th className="py-3.5 px-4">Status</th>
+                    <th className="py-3.5 px-4 text-right">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {filteredOrders.map((order) => (
+                    <tr key={order.id} className="hover:bg-gray-50/60 transition-colors">
+                      <td className="py-3.5 px-4 font-mono font-bold text-gray-900">
+                        #{order.id}
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <p className="font-bold text-gray-900">{order.customerName || 'Customer'}</p>
+                        <p className="text-[11px] text-gray-400 flex items-center gap-1 mt-0.5">
+                          <Phone className="w-3 h-3" />
+                          <span>{order.customerPhone || 'N/A'}</span>
+                        </p>
+                      </td>
+                      <td className="py-3.5 px-4 font-medium text-gray-700">
+                        {order.items?.length || 1} items
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <span className="font-extrabold text-sm text-[#701A23]">
+                          ₹{Number(order.total).toLocaleString('en-IN')}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 text-gray-500 text-[11px]">
+                        {order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-IN', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric'
+                        }) : 'Today'}
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <div className="space-y-1.5 min-w-[150px]">
+                          <select
+                            value={order.status}
+                            onChange={(e) => handleStatusChange(order, e.target.value)}
+                            className={`w-full text-[11px] font-bold rounded-lg px-2.5 py-1.5 border focus:outline-none cursor-pointer ${
+                              order.status === 'Delivered' || order.status === 'Completed'
+                                ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                : order.status === 'Out for Delivery'
+                                ? 'bg-purple-50 text-purple-800 border-purple-200'
+                                : order.status === 'Order Dispatched' || order.status === 'Dispatched'
+                                ? 'bg-indigo-50 text-indigo-800 border-indigo-200'
+                                : order.status === 'Order Accepted'
+                                ? 'bg-blue-50 text-blue-800 border-blue-200'
+                                : order.status === 'Cancelled'
+                                ? 'bg-red-50 text-red-800 border-red-200'
+                                : 'bg-amber-50 text-amber-800 border-amber-200'
+                            }`}
+                          >
+                            <option value="Order Accepted">Order Accepted</option>
+                            <option value="Order Dispatched">Order Dispatched</option>
+                            <option value="Out for Delivery">Out for Delivery</option>
+                            <option value="Delivered">Delivered</option>
+                            <option value="Pending">Pending</option>
+                            <option value="Cancelled">Cancelled</option>
+                          </select>
+
+                          {order.trackingId ? (
+                            <button
+                              onClick={() => handleOpenTrackingModal(order)}
+                              className="w-full flex items-center justify-between text-[10px] font-bold text-blue-800 bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded-md border border-blue-200 transition-colors cursor-pointer"
+                              title="Click to edit DTDC tracking details"
+                            >
+                              <span className="flex items-center gap-1">
+                                <Truck className="w-3 h-3 text-blue-600" />
+                                <span>DTDC: {order.trackingId}</span>
+                              </span>
+                              <span className="text-[9px] text-blue-600 underline">Edit</span>
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleOpenTrackingModal(order)}
+                              className="w-full flex items-center justify-center gap-1 text-[10px] font-semibold text-gray-500 hover:text-[#701A23] bg-gray-50 hover:bg-[#FAF0F1] px-2 py-0.5 rounded border border-gray-200 transition-colors cursor-pointer"
+                            >
+                              <Truck className="w-3 h-3 text-gray-400" />
+                              <span>+ Set DTDC Tracking</span>
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => handleOpenOrderDetails(order)}
+                            className="p-1.5 text-gray-600 hover:text-[#701A23] hover:bg-[#FAF0F1] rounded-lg transition-colors cursor-pointer"
+                            title="View Details"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(order.id)}
+                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                            title="Delete Order"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 
@@ -735,105 +742,6 @@ export default function AdminOrders({ onNavigateShipping }) {
                 >
                   {savingTracking ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                   <span>Save &amp; Update Order</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Manual Order Creation Modal */}
-      {isManualModalOpen && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl relative animate-fadeIn border border-gray-100">
-            <div className="flex items-center justify-between pb-4 border-b border-gray-100">
-              <h3 className="font-serif font-bold text-lg text-gray-900">
-                Create Manual Order
-              </h3>
-              <button
-                onClick={() => setIsManualModalOpen(false)}
-                className="p-1.5 text-gray-400 hover:text-gray-700 rounded-lg"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateManualOrder} className="space-y-4 mt-4 text-xs">
-              <div>
-                <label className="block font-bold text-gray-700 uppercase mb-1">Customer Name *</label>
-                <input
-                  type="text"
-                  required
-                  value={manualFormData.customerName}
-                  onChange={(e) => setManualFormData(prev => ({ ...prev, customerName: e.target.value }))}
-                  placeholder="e.g. Radhika Sharma"
-                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:bg-white focus:ring-2 focus:ring-[#701A23] focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block font-bold text-gray-700 uppercase mb-1">Phone Number *</label>
-                <input
-                  type="text"
-                  required
-                  value={manualFormData.customerPhone}
-                  onChange={(e) => setManualFormData(prev => ({ ...prev, customerPhone: e.target.value }))}
-                  placeholder="+91 96180 93699"
-                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:bg-white focus:ring-2 focus:ring-[#701A23] focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block font-bold text-gray-700 uppercase mb-1">Item Title / Notes *</label>
-                <input
-                  type="text"
-                  required
-                  value={manualFormData.itemTitle}
-                  onChange={(e) => setManualFormData(prev => ({ ...prev, itemTitle: e.target.value }))}
-                  placeholder="e.g. Royal Maroon Silk Cotton Saree"
-                  className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:bg-white focus:ring-2 focus:ring-[#701A23] focus:outline-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-gray-700 uppercase mb-1">Unit Price (₹) *</label>
-                  <input
-                    type="number"
-                    required
-                    value={manualFormData.itemPrice}
-                    onChange={(e) => setManualFormData(prev => ({ ...prev, itemPrice: e.target.value }))}
-                    placeholder="899"
-                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-[#701A23] focus:bg-white focus:ring-2 focus:ring-[#701A23] focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-gray-700 uppercase mb-1">Quantity *</label>
-                  <input
-                    type="number"
-                    min="1"
-                    required
-                    value={manualFormData.quantity}
-                    onChange={(e) => setManualFormData(prev => ({ ...prev, quantity: e.target.value }))}
-                    className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:bg-white focus:ring-2 focus:ring-[#701A23] focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="flex gap-3 pt-4 border-t border-gray-100">
-                <button
-                  type="button"
-                  onClick={() => setIsManualModalOpen(false)}
-                  className="flex-1 py-2.5 border border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submittingManual}
-                  className="flex-1 py-2.5 bg-[#701A23] hover:bg-[#521117] text-white font-bold rounded-xl shadow-md flex items-center justify-center gap-2"
-                >
-                  {submittingManual ? <Loader2 className="w-4 h-4 animate-spin" /> : <span>Record Order</span>}
                 </button>
               </div>
             </form>

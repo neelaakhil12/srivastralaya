@@ -560,135 +560,210 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
             <p className="text-xs text-gray-500 mt-1">Try adjusting your filters or click "Add New Product".</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-[#FAF0F1]/50 border-b border-gray-100 text-gray-500 uppercase tracking-wider font-semibold">
-                <tr>
-                  <th className="py-3 px-4">Product</th>
-                  <th className="py-3 px-4">Category</th>
-                  <th className="py-3 px-4">Price / Discount</th>
-                  <th className="py-3 px-4 text-center">Stock</th>
-                  <th className="py-3 px-4 text-center">Badges</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {filteredProducts.map((prod) => (
-                  <tr key={prod.id} className="hover:bg-gray-50/60 transition-colors">
-                    {/* Image & Title */}
-                    <td className="py-3.5 px-4">
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={prod.image}
-                          alt={prod.name}
-                          className="w-12 h-12 rounded-xl object-cover border border-gray-200 shrink-0 bg-gray-100"
-                          onError={(e) => { e.currentTarget.src = '/products/saree-placeholder.png'; }}
-                        />
-                        <div className="min-w-0 max-w-xs sm:max-w-sm">
-                          <p className="font-bold text-gray-900 truncate" title={prod.name}>
-                            {prod.name}
-                          </p>
-                          <p className="text-[11px] text-gray-400 font-mono">
-                            ID: {prod.id} {prod.subcategory && `• ${prod.subcategory}`}
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-
-                    {/* Category */}
-                    <td className="py-3.5 px-4 font-semibold text-gray-700 capitalize">
-                      <span className="px-2.5 py-1 rounded-md bg-gray-100 text-gray-700 text-[11px]">
-                        {prod.category}
-                      </span>
-                    </td>
-
-                    {/* Price */}
-                    <td className="py-3.5 px-4">
-                      <div className="flex items-center gap-2">
-                        <span className="font-extrabold text-sm text-[#701A23]">
+          <>
+            {/* Mobile Products Grid / Cards View (Visible on small screens) */}
+            <div className="block md:hidden divide-y divide-gray-100">
+              {filteredProducts.map((prod) => (
+                <div key={prod.id} className="p-4 space-y-3 hover:bg-gray-50/60 transition-colors">
+                  <div className="flex gap-3">
+                    <img
+                      src={prod.image}
+                      alt={prod.name}
+                      className="w-16 h-16 rounded-xl object-cover border border-gray-200 shrink-0 bg-gray-100"
+                      onError={(e) => { e.currentTarget.src = '/products/saree-placeholder.png'; }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-1">
+                        <p className="font-bold text-gray-900 text-xs truncate" title={prod.name}>
+                          {prod.name}
+                        </p>
+                        <span className="font-extrabold text-xs text-[#701A23] shrink-0">
                           ₹{prod.price?.toLocaleString('en-IN')}
                         </span>
-                        {prod.oldPrice && (
-                          <span className="text-gray-400 line-through text-[11px]">
-                            ₹{prod.oldPrice?.toLocaleString('en-IN')}
-                          </span>
-                        )}
-                        {prod.discount && (
-                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
-                            {prod.discount}
+                      </div>
+                      <p className="text-[11px] text-gray-400 font-mono mt-0.5">
+                        ID: {prod.id}
+                      </p>
+                      <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                        <span className="px-2 py-0.5 rounded-md bg-gray-100 text-gray-700 text-[10px] font-semibold capitalize">
+                          {prod.category}
+                        </span>
+                        {prod.subcategory && (
+                          <span className="text-[10px] text-gray-500 font-medium">
+                            • {prod.subcategory}
                           </span>
                         )}
                       </div>
-                    </td>
+                    </div>
+                  </div>
 
+                  <div className="flex items-center justify-between pt-1">
                     {/* Stock Switch */}
-                    <td className="py-3.5 px-4 text-center">
+                    <button
+                      onClick={() => handleToggleStock(prod)}
+                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold cursor-pointer transition-all ${
+                        prod.inStock
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                          : 'bg-red-50 text-red-700 border border-red-200'
+                      }`}
+                    >
+                      <span className={`w-1.5 h-1.5 rounded-full ${prod.inStock ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                      <span>{prod.inStock ? 'In Stock' : 'Out of Stock'}</span>
+                    </button>
+
+                    {/* Action buttons */}
+                    <div className="flex items-center gap-1">
                       <button
-                        onClick={() => handleToggleStock(prod)}
-                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold cursor-pointer transition-all ${
-                          prod.inStock
-                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
-                            : 'bg-red-50 text-red-700 border border-red-200 hover:bg-red-100'
-                        }`}
+                        onClick={() => handleOpenEdit(prod)}
+                        className="p-1.5 text-gray-700 bg-gray-100 hover:bg-[#FAF0F1] hover:text-[#701A23] rounded-lg transition-colors"
+                        title="Edit Product"
                       >
-                        <span className={`w-1.5 h-1.5 rounded-full ${prod.inStock ? 'bg-emerald-500' : 'bg-red-500'}`} />
-                        <span>{prod.inStock ? 'In Stock' : 'Out of Stock'}</span>
+                        <Edit2 className="w-4 h-4" />
                       </button>
-                    </td>
+                      <button
+                        onClick={() => setDeleteConfirmId(prod.id)}
+                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Delete Product"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
 
-                    {/* Badges */}
-                    <td className="py-3.5 px-4 text-center">
-                      <div className="flex items-center justify-center gap-1 flex-wrap">
-                        {prod.isBestSeller && (
-                          <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded">
-                            Best Seller
-                          </span>
-                        )}
-                        {prod.isTrending && (
-                          <span className="bg-rose-100 text-rose-800 text-[10px] font-bold px-2 py-0.5 rounded">
-                            Trending
-                          </span>
-                        )}
-                        {prod.isFeatured && (
-                          <span className="bg-purple-100 text-purple-800 text-[10px] font-bold px-2 py-0.5 rounded">
-                            Featured
-                          </span>
-                        )}
-                        {prod.isNew && (
-                          <span className="bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded">
-                            New
-                          </span>
-                        )}
-                        {!prod.isBestSeller && !prod.isTrending && !prod.isFeatured && !prod.isNew && (
-                          <span className="text-gray-300 text-xs">—</span>
-                        )}
-                      </div>
-                    </td>
-
-                    {/* Actions */}
-                    <td className="py-3.5 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <button
-                          onClick={() => handleOpenEdit(prod)}
-                          className="p-1.5 text-gray-600 hover:text-[#701A23] hover:bg-[#FAF0F1] rounded-lg transition-colors"
-                          title="Edit Product"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => setDeleteConfirmId(prod.id)}
-                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Delete Product"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-[#FAF0F1]/50 border-b border-gray-100 text-gray-500 uppercase tracking-wider font-semibold">
+                  <tr>
+                    <th className="py-3 px-4">Product</th>
+                    <th className="py-3 px-4">Category</th>
+                    <th className="py-3 px-4">Price / Discount</th>
+                    <th className="py-3 px-4 text-center">Stock</th>
+                    <th className="py-3 px-4 text-center">Badges</th>
+                    <th className="py-3 px-4 text-right">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {filteredProducts.map((prod) => (
+                    <tr key={prod.id} className="hover:bg-gray-50/60 transition-colors">
+                      {/* Image & Title */}
+                      <td className="py-3.5 px-4">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={prod.image}
+                            alt={prod.name}
+                            className="w-12 h-12 rounded-xl object-cover border border-gray-200 shrink-0 bg-gray-100"
+                            onError={(e) => { e.currentTarget.src = '/products/saree-placeholder.png'; }}
+                          />
+                          <div className="min-w-0 max-w-xs sm:max-w-sm">
+                            <p className="font-bold text-gray-900 truncate" title={prod.name}>
+                              {prod.name}
+                            </p>
+                            <p className="text-[11px] text-gray-400 font-mono">
+                              ID: {prod.id} {prod.subcategory && `• ${prod.subcategory}`}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Category */}
+                      <td className="py-3.5 px-4 font-semibold text-gray-700 capitalize">
+                        <span className="px-2.5 py-1 rounded-md bg-gray-100 text-gray-700 text-[11px]">
+                          {prod.category}
+                        </span>
+                      </td>
+
+                      {/* Price */}
+                      <td className="py-3.5 px-4">
+                        <div className="flex items-center gap-2">
+                          <span className="font-extrabold text-sm text-[#701A23]">
+                            ₹{prod.price?.toLocaleString('en-IN')}
+                          </span>
+                          {prod.oldPrice && (
+                            <span className="text-gray-400 line-through text-[11px]">
+                              ₹{prod.oldPrice?.toLocaleString('en-IN')}
+                            </span>
+                          )}
+                          {prod.discount && (
+                            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
+                              {prod.discount}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* Stock Switch */}
+                      <td className="py-3.5 px-4 text-center">
+                        <button
+                          onClick={() => handleToggleStock(prod)}
+                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold cursor-pointer transition-all ${
+                            prod.inStock
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
+                              : 'bg-red-50 text-red-700 border border-red-200 hover:bg-red-100'
+                          }`}
+                        >
+                          <span className={`w-1.5 h-1.5 rounded-full ${prod.inStock ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                          <span>{prod.inStock ? 'In Stock' : 'Out of Stock'}</span>
+                        </button>
+                      </td>
+
+                      {/* Badges */}
+                      <td className="py-3.5 px-4 text-center">
+                        <div className="flex items-center justify-center gap-1 flex-wrap">
+                          {prod.isBestSeller && (
+                            <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded">
+                              Best Seller
+                            </span>
+                          )}
+                          {prod.isTrending && (
+                            <span className="bg-rose-100 text-rose-800 text-[10px] font-bold px-2 py-0.5 rounded">
+                              Trending
+                            </span>
+                          )}
+                          {prod.isFeatured && (
+                            <span className="bg-purple-100 text-purple-800 text-[10px] font-bold px-2 py-0.5 rounded">
+                              Featured
+                            </span>
+                          )}
+                          {prod.isNew && (
+                            <span className="bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded">
+                              New
+                            </span>
+                          )}
+                          {!prod.isBestSeller && !prod.isTrending && !prod.isFeatured && !prod.isNew && (
+                            <span className="text-gray-300 text-xs">—</span>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* Actions */}
+                      <td className="py-3.5 px-4 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => handleOpenEdit(prod)}
+                            className="p-1.5 text-gray-600 hover:text-[#701A23] hover:bg-[#FAF0F1] rounded-lg transition-colors"
+                            title="Edit Product"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => setDeleteConfirmId(prod.id)}
+                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Delete Product"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
 
