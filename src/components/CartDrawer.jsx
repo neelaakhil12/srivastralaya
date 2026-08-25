@@ -15,11 +15,13 @@ import {
   CheckCircle,
   Loader,
   ShieldCheck,
-  Navigation
+  Navigation,
+  Download
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { addOrder } from '../services/supabase';
+import { generateInvoice } from '../utils/generateInvoice';
 
 export default function CartDrawer({ setActivePage }) {
   const {
@@ -415,9 +417,10 @@ export default function CartDrawer({ setActivePage }) {
                 </div>
               </div>
 
-              {/* Action Button: OK / Share on WhatsApp & Go to Account Orders */}
+              {/* Action Buttons: WhatsApp & Download Invoice & Account link */}
               <div className="space-y-2.5 pt-2">
                 <button
+                  type="button"
                   onClick={handleConfirmAndWhatsApp}
                   className="w-full bg-[#25D366] hover:bg-[#128C7E] text-white py-3.5 px-4 rounded-xl font-bold text-sm flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transition-all cursor-pointer"
                 >
@@ -425,7 +428,32 @@ export default function CartDrawer({ setActivePage }) {
                   <span>OK — Share on WhatsApp & View Orders</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
+
                 <button
+                  type="button"
+                  onClick={() => {
+                    const orderToPrint = completedOrderData || {
+                      id: successOrderId,
+                      customerName: custName,
+                      customerPhone: custPhone,
+                      customerEmail: custEmail,
+                      customerAddress: `${custAddress}, PIN: ${custPincode}`,
+                      total: grandTotal,
+                      subtotal,
+                      discount: discountAmount,
+                      shipping: shippingCharge,
+                      items: cartItems
+                    };
+                    generateInvoice(orderToPrint);
+                  }}
+                  className="w-full bg-[#FAF0F1] hover:bg-[#F5DCD0] text-[#701A23] border border-[#F5DCD0] py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Download Official Tax Invoice (PDF)</span>
+                </button>
+
+                <button
+                  type="button"
                   onClick={() => {
                     setIsCartOpen(false);
                     setCheckoutView('cart');
