@@ -8,7 +8,7 @@ import ProductCard from '../components/ProductCard';
 export default function ProductsPage({ selectedCategory, setSelectedCategory }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('featured');
-  const [maxPrice, setMaxPrice] = useState(2500);
+  const [maxPrice, setMaxPrice] = useState(100000);
   const [productsList, setProductsList] = useState([]);
   const [categoriesList, setCategoriesList] = useState(initialCategories);
   const [loading, setLoading] = useState(true);
@@ -41,30 +41,52 @@ export default function ProductsPage({ selectedCategory, setSelectedCategory }) 
 
   const filteredProducts = useMemo(() => {
     return productsList.filter(product => {
-      // Category filter
-      if (selectedCategory && selectedCategory !== 'all' && product.category !== selectedCategory) {
-        return false;
+      // Category filter with smart ID / Name / Slug resolution
+      if (selectedCategory && selectedCategory !== 'all') {
+        const sel = String(selectedCategory).toLowerCase().trim();
+        const prodCat = String(product.category || '').toLowerCase().trim();
+        const prodSub = String(product.subcategory || '').toLowerCase().trim();
+
+        // Check if selectedCategory matches ID or Name in categories list
+        const matchedCat = categoriesList.find(c =>
+          String(c.id).toLowerCase().trim() === sel ||
+          String(c.name).toLowerCase().trim() === sel
+        );
+
+        const targetId = matchedCat ? String(matchedCat.id).toLowerCase().trim() : sel;
+        const targetName = matchedCat ? String(matchedCat.name).toLowerCase().trim() : sel;
+
+        const isDirectMatch = prodCat === targetId || prodCat === targetName;
+        const isSubMatch = prodSub === targetId || prodSub === targetName;
+        const isFuzzyMatch = (prodCat && (targetName.includes(prodCat) || prodCat.includes(targetName))) ||
+                             (prodCat && (targetId.includes(prodCat) || prodCat.includes(targetId)));
+
+        if (!isDirectMatch && !isSubMatch && !isFuzzyMatch) {
+          return false;
+        }
       }
+
       // Search filter
       if (searchQuery.trim() !== '') {
         const query = searchQuery.toLowerCase();
-        const matchName = product.name.toLowerCase().includes(query);
-        const matchCat = product.category.toLowerCase().includes(query);
-        const matchSub = product.subcategory.toLowerCase().includes(query);
+        const matchName = String(product.name || '').toLowerCase().includes(query);
+        const matchCat = String(product.category || '').toLowerCase().includes(query);
+        const matchSub = String(product.subcategory || '').toLowerCase().includes(query);
         if (!matchName && !matchCat && !matchSub) return false;
       }
+
       // Price filter
-      if (product.price > maxPrice) {
+      if (maxPrice && product.price > maxPrice) {
         return false;
       }
       return true;
     }).sort((a, b) => {
       if (sortBy === 'price-low') return a.price - b.price;
       if (sortBy === 'price-high') return b.price - a.price;
-      if (sortBy === 'rating') return b.rating - a.rating;
+      if (sortBy === 'rating') return (b.rating || 0) - (a.rating || 0);
       return 0; // default featured
     });
-  }, [selectedCategory, searchQuery, sortBy, maxPrice]);
+  }, [selectedCategory, searchQuery, sortBy, maxPrice, productsList, categoriesList]);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
