@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { generateInvoice } from '../utils/generateInvoice';
+import { getOrders } from '../services/supabase';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
@@ -332,35 +333,50 @@ export default function AccountPage({ setActivePage }) {
     setOrdersLoading(true);
     setOrdersError('');
     try {
-      // 1. Check local orders for instant view
-      let localOrders = [];
+      const userEmail = (user?.email || '').trim().toLowerCase();
+      const userPhone = (user?.phone || '').replace(/\D/g, '');
+
+      // 1. Fetch live orders from Supabase cloud database
+      let allCloudOrders = [];
       try {
-        localOrders = JSON.parse(localStorage.getItem('sv_user_orders') || '[]');
+        allCloudOrders = await getOrders();
+      } catch (e) {
+        console.warn('Could not fetch orders from Supabase:', e);
+      }
+
+      // 2. Local orders fallback
+      let rawLocal = [];
+      try {
+        rawLocal = JSON.parse(localStorage.getItem('sv_user_orders') || '[]');
       } catch (e) {}
 
-      // 2. Fetch from API / Supabase
-      const params = new URLSearchParams();
-      if (user?.email) params.set('email', user.email);
-      if (user?.phone) params.set('phone', user.phone);
+      // 3. Filter orders strictly belonging to this logged-in user only!
+      const userOrders = [...rawLocal, ...allCloudOrders].filter(o => {
+        if (!o) return false;
+        const ordEmail = (o.customerEmail || o.email || '').trim().toLowerCase();
+        const ordPhone = (o.customerPhone || o.phone || '').replace(/\D/g, '');
 
-      const res = await fetch(`${API_BASE}/api/user/orders?${params}`);
-      const data = await res.json();
-      const apiOrders = (data && data.success && Array.isArray(data.orders)) ? data.orders : [];
+        const emailMatch = userEmail && ordEmail && (ordEmail === userEmail || ordEmail.includes(userEmail));
+        const phoneMatch = userPhone && ordPhone && (ordPhone === userPhone || ordPhone.endsWith(userPhone) || userPhone.endsWith(ordPhone));
 
-      // Merge and deduplicate by id
+        return emailMatch || phoneMatch;
+      });
+
+      // Deduplicate by ID and sort newest first
       const orderMap = new Map();
-      [...localOrders, ...apiOrders].forEach(o => {
+      userOrders.forEach(o => {
         if (o && o.id) orderMap.set(o.id, o);
       });
 
-      setOrders(Array.from(orderMap.values()));
+      const sorted = Array.from(orderMap.values()).sort((a, b) => {
+        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return timeB - timeA;
+      });
+
+      setOrders(sorted);
     } catch (err) {
-      try {
-        const local = JSON.parse(localStorage.getItem('sv_user_orders') || '[]');
-        setOrders(local);
-      } catch (e) {
-        setOrdersError('Could not load orders. Please try again.');
-      }
+      setOrdersError('Could not load orders. Please try again.');
     } finally {
       setOrdersLoading(false);
     }
