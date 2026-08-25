@@ -129,7 +129,7 @@ export default function AdminHeroSliders() {
     }
   };
 
-  const handleSaveSlide = async (e) => {
+  const handleSaveSlide = (e) => {
     e.preventDefault();
     if (!formData.image) {
       alert('Please upload an image or provide an image URL for the slide.');
@@ -143,28 +143,29 @@ export default function AdminHeroSliders() {
       updated.push({ ...formData, id: formData.id || `slide-${Date.now()}` });
     }
 
+    // Instant optimistic update (0ms delay)
     setSliders(updated);
     setIsModalOpen(false);
-    await saveHeroSliders(updated);
-    showSuccess(editingIndex !== null ? 'Slide updated successfully!' : 'New hero slide added successfully!');
+    saveHeroSliders(updated);
+    showSuccess(editingIndex !== null ? 'Slide updated successfully!' : 'Hero slide added successfully!');
   };
 
-  const handleDeleteSlide = async (index) => {
+  const handleDeleteSlide = (index) => {
     if (!window.confirm(`Are you sure you want to delete Slide #${index + 1}?`)) return;
     const updated = sliders.filter((_, i) => i !== index);
     setSliders(updated);
-    await saveHeroSliders(updated);
+    saveHeroSliders(updated);
     showSuccess('Slide deleted.');
   };
 
-  const handleToggleActive = async (index) => {
+  const handleToggleActive = (index) => {
     const updated = [...sliders];
     updated[index].active = !updated[index].active;
     setSliders(updated);
-    await saveHeroSliders(updated);
+    saveHeroSliders(updated);
   };
 
-  const handleMove = async (index, direction) => {
+  const handleMove = (index, direction) => {
     const targetIndex = index + direction;
     if (targetIndex < 0 || targetIndex >= sliders.length) return;
     const updated = [...sliders];
@@ -172,7 +173,7 @@ export default function AdminHeroSliders() {
     updated[index] = updated[targetIndex];
     updated[targetIndex] = temp;
     setSliders(updated);
-    await saveHeroSliders(updated);
+    saveHeroSliders(updated);
   };
 
 
@@ -209,15 +210,6 @@ export default function AdminHeroSliders() {
         </div>
 
         <div className="flex items-center gap-2.5">
-          <button
-            onClick={handleResetDefaults}
-            className="flex items-center gap-1.5 px-3.5 py-2.5 bg-gray-50 hover:bg-gray-100 text-gray-700 text-xs font-semibold rounded-xl border border-gray-200 transition-colors cursor-pointer"
-            title="Reset to default banner images"
-          >
-            <RotateCcw className="w-3.5 h-3.5 text-gray-500" />
-            <span>Reset Defaults</span>
-          </button>
-
           <button
             onClick={handleOpenAdd}
             className="flex items-center gap-2 px-4 py-2.5 bg-[#701A23] hover:bg-[#521117] text-white rounded-xl text-xs font-bold shadow-md transition-all cursor-pointer whitespace-nowrap"

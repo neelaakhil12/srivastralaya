@@ -41,12 +41,14 @@ export function getHeroSliders() {
   return DEFAULT_SLIDERS;
 }
 
-export async function saveHeroSliders(sliders) {
+export function saveHeroSliders(sliders) {
   try {
+    // 1. Instant local persistence & UI broadcast (0ms delay)
     localStorage.setItem('sv_hero_sliders', JSON.stringify(sliders));
     window.dispatchEvent(new Event('sv_sliders_updated'));
-    // Persist to Supabase cloud
-    await saveStoreConfig({ sliders });
+
+    // 2. Non-blocking asynchronous cloud sync
+    saveStoreConfig({ sliders }).catch(err => console.warn('Cloud slider sync note:', err));
   } catch (e) {
     console.error('Failed to save hero sliders:', e);
   }
@@ -63,12 +65,14 @@ export function getSliderSettings() {
   };
 }
 
-export async function saveSliderSettings(settings) {
+export function saveSliderSettings(settings) {
   try {
+    // 1. Instant local persistence & UI broadcast (0ms delay)
     localStorage.setItem('sv_slider_settings', JSON.stringify(settings));
     window.dispatchEvent(new Event('sv_sliders_updated'));
-    // Persist to Supabase cloud
-    await saveStoreConfig({ sliderSettings: settings });
+
+    // 2. Non-blocking asynchronous cloud sync
+    saveStoreConfig({ sliderSettings: settings }).catch(err => console.warn('Cloud slider settings sync note:', err));
   } catch (e) {
     console.error('Failed to save slider settings:', e);
   }
