@@ -121,9 +121,6 @@ function saveLocalOverrides(overrides) {
 }
 
 export async function getProducts() {
-  const localOverrides = getLocalOverrides();
-  let baseList = [];
-
   try {
     const { data, error } = await supabase
       .from('products')
@@ -132,9 +129,12 @@ export async function getProducts() {
 
     if (error) {
       console.warn('Supabase fetch products warning:', error.message);
-      baseList = [];
-    } else if (Array.isArray(data)) {
-      baseList = data.map(item => ({
+      const cached = localStorage.getItem('sv_cached_products');
+      return cached ? JSON.parse(cached) : [];
+    }
+
+    if (Array.isArray(data)) {
+      const list = data.map(item => ({
         id: item.id,
         name: item.name,
         category: item.category,
@@ -159,55 +159,26 @@ export async function getProducts() {
         fabric: item.fabric || '',
         length: item.length || ''
       }));
+      try {
+        localStorage.setItem('sv_cached_products', JSON.stringify(list));
+      } catch (e) {}
+      return list;
     }
   } catch (err) {
     console.warn('Database products error:', err);
-    baseList = [];
   }
 
-  // Merge with local overrides
-  const mergedMap = new Map();
-  baseList.forEach(p => mergedMap.set(p.id, p));
-
-  Object.values(localOverrides).forEach(p => {
-    if (p._deleted) {
-      mergedMap.delete(p.id);
-    } else {
-      const existing = mergedMap.get(p.id) || {};
-      mergedMap.set(p.id, { ...existing, ...p });
-    }
-  });
-
-  return Array.from(mergedMap.values());
+  const cached = localStorage.getItem('sv_cached_products');
+  return cached ? JSON.parse(cached) : [];
 }
 
 export async function addProduct(product) {
-  const localOverrides = getLocalOverrides();
   const generatedId = product.id || `sv-${Date.now()}`;
   const specList = Array.isArray(product.specifications)
     ? product.specifications
     : (typeof product.specifications === 'string'
       ? product.specifications.split('\n').map(s => s.replace(/^[•\-*]\s*/, '').trim()).filter(Boolean)
       : []);
-
-  const normalized = {
-    ...product,
-    id: generatedId,
-    price: Number(product.price) || 0,
-    oldPrice: product.oldPrice ? Number(product.oldPrice) : null,
-    isNew: product.isNew ?? false,
-    isFeatured: product.isFeatured ?? false,
-    isBestSeller: product.isBestSeller ?? false,
-    isTrending: product.isTrending ?? false,
-    inStock: product.inStock ?? true,
-    sizes: product.sizes && product.sizes.length ? product.sizes : null,
-    sizePrices: product.sizePrices || null,
-    colors: Array.isArray(product.colors) && product.colors.length ? product.colors : null,
-    specifications: specList
-  };
-
-  localOverrides[generatedId] = normalized;
-  saveLocalOverrides(localOverrides);
 
   const payload = {
     id: generatedId,
@@ -243,6 +214,7 @@ export async function addProduct(product) {
       .single();
 
     if (error) throw error;
+    window.dispatchEvent(new Event('sv_products_updated'));
     return data;
   } catch (err) {
     if (err.message && (err.message.includes('is_best_seller') || err.message.includes('is_trending') || err.message.includes('sizes') || err.message.includes('size_prices') || err.message.includes('colors') || err.message.includes('specifications'))) {
@@ -259,53 +231,32 @@ export async function addProduct(product) {
         .select()
         .single();
       if (error) throw error;
+      window.dispatchEvent(new Event('sv_products_updated'));
       return data;
     }
-    console.warn('Supabase add product warning (saved locally):', err.message);
-    return normalized;
+    console.error('Supabase add product error:', err);
+    throw err;
   }
 }
 
 export async function updateProduct(id, product) {
-  const localOverrides = getLocalOverrides();
   const specList = Array.isArray(product.specifications)
     ? product.specifications
     : (typeof product.specifications === 'string'
       ? product.specifications.split('\n').map(s => s.replace(/^[•\-*]\s*/, '').trim()).filter(Boolean)
       : []);
 
-  const normalized = {
-    ...(localOverrides[id] || {}),
-    ...product,
-    id: id,
-    price: Number(product.price),
-    oldPrice: product.oldPrice ? Number(product.oldPrice) : null,
-    isNew: product.isNew ?? false,
-    isFeatured: product.isFeatured ?? false,
-    isBestSeller: product.isBestSeller ?? false,
-    isTrending: product.isTrending ?? false,
-    inStock: product.inStock ?? true,
-    sizes: product.sizes && product.sizes.length ? product.sizes : null,
-    sizePrices: product.sizePrices || null,
-    colors: Array.isArray(product.colors) && product.colors.length ? product.colors : null,
-    specifications: specList
-  };
-
-  localOverrides[id] = normalized;
-  saveLocalOverrides(localOverrides);
-
   const payload = {
-    id: id,
     name: product.name,
     category: product.category,
     subcategory: product.subcategory,
     price: Number(product.price),
     old_price: product.oldPrice ? Number(product.oldPrice) : null,
     discount: product.discount,
-    is_new: product.isNew ?? false,
-    is_featured: product.isFeatured ?? false,
-    is_best_seller: product.isBestSeller ?? false,
-    is_trending: product.isTrending ?? false,
+    is_new: product.isNew,
+    is_featured: product.isFeatured,
+    is_best_seller: product.isBestSeller,
+    is_trending: product.isTrending,
     sizes: product.sizes && product.sizes.length ? product.sizes : null,
     size_prices: product.sizePrices || null,
     colors: Array.isArray(product.colors) && product.colors.length ? product.colors : null,
@@ -329,6 +280,7 @@ export async function updateProduct(id, product) {
       .single();
 
     if (error) throw error;
+    window.dispatchEvent(new Event('sv_products_updated'));
     return data;
   } catch (err) {
     if (err.message && (err.message.includes('is_best_seller') || err.message.includes('is_trending') || err.message.includes('sizes') || err.message.includes('size_prices') || err.message.includes('colors') || err.message.includes('specifications'))) {
@@ -346,18 +298,15 @@ export async function updateProduct(id, product) {
         .select()
         .single();
       if (error) throw error;
+      window.dispatchEvent(new Event('sv_products_updated'));
       return data;
     }
-    console.warn('Supabase update product warning (saved locally):', err.message);
-    return normalized;
+    console.error('Supabase update product error:', err);
+    throw err;
   }
 }
 
 export async function deleteProduct(id) {
-  const localOverrides = getLocalOverrides();
-  localOverrides[id] = { id, _deleted: true };
-  saveLocalOverrides(localOverrides);
-
   try {
     const { error } = await supabase
       .from('products')
@@ -365,10 +314,12 @@ export async function deleteProduct(id) {
       .eq('id', id);
 
     if (error) throw error;
-  } catch (e) {
-    console.warn('Supabase delete warning:', e.message);
+    window.dispatchEvent(new Event('sv_products_updated'));
+    return true;
+  } catch (err) {
+    console.error('Failed to delete product from Supabase:', err);
+    throw err;
   }
-  return true;
 }
 
 // ==========================================
