@@ -1,6 +1,40 @@
 -- =========================================================
--- SRI VASTRALAYA SUPABASE DATABASE SCHEMA
--- Run this in Supabase SQL Editor if creating tables manually
+-- SRI VASTRALAYA SUPABASE DATABASE SCHEMA & MIGRATIONS
+-- Run this in Supabase SQL Editor (Dashboard -> SQL Editor -> New Query -> Run)
+-- =========================================================
+
+-- =========================================================
+-- ⚡ STEP 1: RUN THIS MIGRATION IF YOUR TABLES ALREADY EXIST
+-- (This adds missing columns for Colors, Sizes, Size-Pricing, etc.)
+-- =========================================================
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS sizes JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS size_prices JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS colors JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS specifications JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS is_best_seller BOOLEAN DEFAULT false;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS is_trending BOOLEAN DEFAULT false;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS images JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS fabric TEXT;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS length TEXT;
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS subcategory TEXT;
+
+ALTER TABLE public.categories ADD COLUMN IF NOT EXISTS subcategories JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.categories ADD COLUMN IF NOT EXISTS banner_image TEXT;
+ALTER TABLE public.categories ADD COLUMN IF NOT EXISTS tagline TEXT;
+ALTER TABLE public.categories ADD COLUMN IF NOT EXISTS item_count TEXT DEFAULT '0 Items';
+ALTER TABLE public.categories ADD COLUMN IF NOT EXISTS featured BOOLEAN DEFAULT false;
+
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS items JSONB NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS payment_method TEXT DEFAULT 'COD';
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS notes TEXT;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS customer_email TEXT;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS tracking_id TEXT;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS courier_name TEXT;
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS tracking_url TEXT;
+
+
+-- =========================================================
+-- 📦 STEP 2: FULL TABLE DEFINITIONS (FOR FRESH SETUPS)
 -- =========================================================
 
 -- 1. CATEGORIES TABLE
@@ -28,6 +62,12 @@ CREATE TABLE IF NOT EXISTS public.products (
     discount TEXT,
     is_new BOOLEAN DEFAULT false,
     is_featured BOOLEAN DEFAULT false,
+    is_best_seller BOOLEAN DEFAULT false,
+    is_trending BOOLEAN DEFAULT false,
+    sizes JSONB DEFAULT '[]'::jsonb,
+    size_prices JSONB DEFAULT '{}'::jsonb,
+    colors JSONB DEFAULT '[]'::jsonb,
+    specifications JSONB DEFAULT '[]'::jsonb,
     rating NUMERIC DEFAULT 4.8,
     reviews_count INTEGER DEFAULT 0,
     image TEXT NOT NULL,
@@ -69,13 +109,53 @@ CREATE TABLE IF NOT EXISTS public.admins (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 5. ENABLE ROW LEVEL SECURITY (RLS) & ALLOW PUBLIC ACCESS POLICIES FOR OUR APP
+-- 5. USERS TABLE
+CREATE TABLE IF NOT EXISTS public.users (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    name TEXT NOT NULL,
+    phone TEXT,
+    email TEXT UNIQUE,
+    google_id TEXT,
+    avatar_url TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 6. USER OTPs TABLE
+CREATE TABLE IF NOT EXISTS public.user_otps (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    email TEXT NOT NULL,
+    otp TEXT NOT NULL,
+    name TEXT,
+    phone TEXT,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- 7. HERO SLIDERS TABLE
+CREATE TABLE IF NOT EXISTS public.hero_sliders (
+    id TEXT PRIMARY KEY,
+    image TEXT NOT NULL,
+    title TEXT,
+    subtitle TEXT,
+    link TEXT DEFAULT 'products',
+    active BOOLEAN DEFAULT true,
+    display_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- =========================================================
+-- 🔐 STEP 3: ROW LEVEL SECURITY & PERMISSIVE POLICIES
+-- =========================================================
 ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.admins ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_otps ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.hero_sliders ENABLE ROW LEVEL SECURITY;
 
--- Allow anon read & write for public web store & admin operations
+-- Allow anon / public read & write for app operations
 CREATE POLICY "Allow public read categories" ON public.categories FOR SELECT USING (true);
 CREATE POLICY "Allow public insert categories" ON public.categories FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow public update categories" ON public.categories FOR UPDATE USING (true);
@@ -92,58 +172,10 @@ CREATE POLICY "Allow public update orders" ON public.orders FOR UPDATE USING (tr
 CREATE POLICY "Allow public delete orders" ON public.orders FOR DELETE USING (true);
 
 CREATE POLICY "Allow public access admins" ON public.admins FOR ALL USING (true);
-
--- =========================================================
--- USER AUTH TABLES (for customer login)
--- =========================================================
-
--- 5. USERS TABLE
-CREATE TABLE IF NOT EXISTS public.users (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    name TEXT NOT NULL,
-    phone TEXT,
-    email TEXT UNIQUE,
-    google_id TEXT,
-    avatar_url TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
-
--- 6. USER OTPs TABLE (short-lived, auto-cleaned)
-CREATE TABLE IF NOT EXISTS public.user_otps (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    email TEXT NOT NULL,
-    otp TEXT NOT NULL,
-    name TEXT,
-    phone TEXT,
-    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
-
--- Enable RLS
-ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.user_otps ENABLE ROW LEVEL SECURITY;
-
--- Allow full public access (secured at app level)
 CREATE POLICY "Allow public access users" ON public.users FOR ALL USING (true);
 CREATE POLICY "Allow public access user_otps" ON public.user_otps FOR ALL USING (true);
 
--- 7. HERO SLIDERS TABLE
-CREATE TABLE IF NOT EXISTS public.hero_sliders (
-    id TEXT PRIMARY KEY,
-    image TEXT NOT NULL,
-    title TEXT,
-    subtitle TEXT,
-    link TEXT DEFAULT 'products',
-    active BOOLEAN DEFAULT true,
-    display_order INTEGER DEFAULT 0,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
-
-ALTER TABLE public.hero_sliders ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow public select hero_sliders" ON public.hero_sliders FOR SELECT USING (true);
 CREATE POLICY "Allow public insert hero_sliders" ON public.hero_sliders FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow public update hero_sliders" ON public.hero_sliders FOR UPDATE USING (true);
 CREATE POLICY "Allow public delete hero_sliders" ON public.hero_sliders FOR DELETE USING (true);
-
-

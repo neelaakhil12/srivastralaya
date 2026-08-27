@@ -28,7 +28,8 @@ export default function AdminOrders({ onNavigateShipping }) {
   const [trackingForm, setTrackingForm] = useState({
     status: '',
     courierName: 'DTDC Express',
-    trackingId: ''
+    trackingId: '',
+    trackingUrl: ''
   });
   const [savingTracking, setSavingTracking] = useState(false);
   const [trackingSuccess, setTrackingSuccess] = useState(false);
@@ -54,7 +55,8 @@ export default function AdminOrders({ onNavigateShipping }) {
     setTrackingForm({
       status: forcedStatus || order.status || 'Order Dispatched',
       courierName: order.courierName || 'DTDC Express',
-      trackingId: order.trackingId || ''
+      trackingId: order.trackingId || '',
+      trackingUrl: order.trackingUrl || ''
     });
     setTrackingSuccess(false);
     setIsTrackingModalOpen(true);
@@ -65,7 +67,8 @@ export default function AdminOrders({ onNavigateShipping }) {
     setTrackingForm({
       status: order.status || 'Order Accepted',
       courierName: order.courierName || 'DTDC Express',
-      trackingId: order.trackingId || ''
+      trackingId: order.trackingId || '',
+      trackingUrl: order.trackingUrl || ''
     });
     setTrackingSuccess(false);
   };
@@ -80,7 +83,8 @@ export default function AdminOrders({ onNavigateShipping }) {
       const payload = {
         status: trackingForm.status,
         courierName: trackingForm.courierName || 'DTDC Express',
-        trackingId: trackingForm.trackingId.trim()
+        trackingId: trackingForm.trackingId.trim(),
+        trackingUrl: trackingForm.trackingUrl ? trackingForm.trackingUrl.trim() : ''
       };
 
       await updateOrderTracking(selectedOrder.id, payload);
@@ -510,14 +514,14 @@ export default function AdminOrders({ onNavigateShipping }) {
                     type="text"
                     value={trackingForm.courierName}
                     onChange={(e) => setTrackingForm(prev => ({ ...prev, courierName: e.target.value }))}
-                    placeholder="e.g. DTDC Express"
+                    placeholder="e.g. DTDC Express / India Post"
                     className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-semibold text-gray-800 focus:outline-none focus:border-[#701A23]"
                   />
                 </div>
 
                 <div className="sm:col-span-2">
                   <label className="block text-[11px] font-bold text-gray-600 mb-1">
-                    DTDC Tracking / AWB ID
+                    Tracking / AWB ID
                   </label>
                   <input
                     type="text"
@@ -525,6 +529,19 @@ export default function AdminOrders({ onNavigateShipping }) {
                     onChange={(e) => setTrackingForm(prev => ({ ...prev, trackingId: e.target.value }))}
                     placeholder="e.g. D58921044 / W982314"
                     className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-gray-900 focus:outline-none focus:border-[#701A23]"
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-[11px] font-bold text-gray-600 mb-1">
+                    Direct Tracking Link / URL (Optional)
+                  </label>
+                  <input
+                    type="url"
+                    value={trackingForm.trackingUrl}
+                    onChange={(e) => setTrackingForm(prev => ({ ...prev, trackingUrl: e.target.value }))}
+                    placeholder="https://track.dtdc.com/ctrk-tracking/tracker.html"
+                    className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs text-blue-700 font-mono focus:outline-none focus:border-[#701A23]"
                   />
                 </div>
               </div>
@@ -623,7 +640,7 @@ export default function AdminOrders({ onNavigateShipping }) {
                 </div>
                 <div>
                   <h3 className="font-bold text-base text-gray-900">
-                    DTDC Courier &amp; Tracking
+                    Courier &amp; Tracking Details
                   </h3>
                   <p className="text-[11px] text-gray-500 font-mono">
                     Order #{selectedOrder.id} · {selectedOrder.customerName}
@@ -660,22 +677,47 @@ export default function AdminOrders({ onNavigateShipping }) {
 
               {/* Courier Name */}
               <div>
-                <label className="block font-bold text-gray-700 uppercase tracking-wide mb-1">
-                  Courier Partner Name
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block font-bold text-gray-700 uppercase tracking-wide">
+                    Courier Partner Name
+                  </label>
+                  <div className="flex gap-1">
+                    {['DTDC', 'India Post', 'Blue Dart', 'Delhivery'].map(name => (
+                      <button
+                        type="button"
+                        key={name}
+                        onClick={() => {
+                          let defaultUrl = '';
+                          if (name === 'DTDC') defaultUrl = 'https://track.dtdc.com/ctrk-tracking/tracker.html';
+                          else if (name === 'India Post') defaultUrl = 'https://www.indiapost.gov.in/_layouts/15/dpt.cpt.application/tracking.aspx';
+                          else if (name === 'Blue Dart') defaultUrl = 'https://www.bluedart.com/tracking';
+                          else if (name === 'Delhivery') defaultUrl = 'https://www.delhivery.com/tracking';
+                          setTrackingForm(prev => ({
+                            ...prev,
+                            courierName: name === 'DTDC' ? 'DTDC Express' : name,
+                            trackingUrl: prev.trackingUrl || defaultUrl
+                          }));
+                        }}
+                        className="text-[10px] font-bold text-gray-600 hover:text-[#701A23] bg-gray-100 hover:bg-[#FAF0F1] px-1.5 py-0.5 rounded cursor-pointer transition-colors"
+                      >
+                        {name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <input
                   type="text"
                   value={trackingForm.courierName}
                   onChange={(e) => setTrackingForm(prev => ({ ...prev, courierName: e.target.value }))}
-                  placeholder="e.g. DTDC Express"
+                  placeholder="e.g. DTDC Express, India Post, Blue Dart"
                   className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold text-gray-800 focus:bg-white focus:ring-2 focus:ring-[#701A23] focus:outline-none"
                 />
               </div>
 
-              {/* DTDC Tracking ID / AWB */}
+              {/* Tracking ID / AWB */}
               <div>
                 <label className="block font-bold text-gray-700 uppercase tracking-wide mb-1">
-                  DTDC Tracking ID / AWB Number *
+                  Tracking ID / AWB Number *
                 </label>
                 <input
                   type="text"
@@ -686,6 +728,33 @@ export default function AdminOrders({ onNavigateShipping }) {
                   className="w-full px-3.5 py-2.5 bg-blue-50/50 border border-blue-200 rounded-xl text-xs font-mono font-bold text-gray-900 focus:bg-white focus:ring-2 focus:ring-[#701A23] focus:outline-none"
                 />
                 <p className="text-[10px] text-gray-400 mt-0.5">Customer can click to copy this tracking number in their account.</p>
+              </div>
+
+              {/* Direct Tracking URL / Link */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block font-bold text-gray-700 uppercase tracking-wide">
+                    Direct Tracking Link / URL (Optional)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setTrackingForm(prev => ({
+                      ...prev,
+                      trackingUrl: 'https://track.dtdc.com/ctrk-tracking/tracker.html'
+                    }))}
+                    className="text-[10px] font-bold text-[#701A23] hover:underline cursor-pointer"
+                  >
+                    + DTDC Default Link
+                  </button>
+                </div>
+                <input
+                  type="url"
+                  value={trackingForm.trackingUrl}
+                  onChange={(e) => setTrackingForm(prev => ({ ...prev, trackingUrl: e.target.value }))}
+                  placeholder="https://track.dtdc.com/ctrk-tracking/tracker.html"
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-mono text-blue-700 focus:bg-white focus:ring-2 focus:ring-[#701A23] focus:outline-none"
+                />
+                <p className="text-[10px] text-gray-400 mt-0.5">Direct webpage URL where the customer can click to track their parcel.</p>
               </div>
 
               {trackingSuccess && (

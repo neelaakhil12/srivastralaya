@@ -274,8 +274,47 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
   };
 
   const handleOpenEdit = (prod) => {
-    const prodHasSizes = Boolean(prod.sizes && Array.isArray(prod.sizes) && prod.sizes.length > 0);
-    const prodHasColors = Boolean(prod.colors && Array.isArray(prod.colors) && prod.colors.length > 0);
+    let parsedSizes = [];
+    if (Array.isArray(prod.sizes)) {
+      parsedSizes = [...prod.sizes];
+    } else if (typeof prod.sizes === 'string' && prod.sizes.trim()) {
+      try {
+        const p = JSON.parse(prod.sizes);
+        if (Array.isArray(p)) parsedSizes = p;
+      } catch (e) {
+        parsedSizes = prod.sizes.split(',').map(s => s.trim()).filter(Boolean);
+      }
+    }
+
+    let parsedColors = [];
+    if (Array.isArray(prod.colors)) {
+      parsedColors = [...prod.colors];
+    } else if (typeof prod.colors === 'string' && prod.colors.trim()) {
+      try {
+        const p = JSON.parse(prod.colors);
+        if (Array.isArray(p)) parsedColors = p;
+      } catch (e) {}
+    }
+
+    let parsedSizePrices = {};
+    if (prod.sizePrices && typeof prod.sizePrices === 'object') {
+      parsedSizePrices = { ...prod.sizePrices };
+    } else if (prod.size_prices && typeof prod.size_prices === 'object') {
+      parsedSizePrices = { ...prod.size_prices };
+    } else if (typeof prod.sizePrices === 'string' && prod.sizePrices.trim()) {
+      try {
+        const p = JSON.parse(prod.sizePrices);
+        if (p && typeof p === 'object') parsedSizePrices = p;
+      } catch (e) {}
+    } else if (typeof prod.size_prices === 'string' && prod.size_prices.trim()) {
+      try {
+        const p = JSON.parse(prod.size_prices);
+        if (p && typeof p === 'object') parsedSizePrices = p;
+      } catch (e) {}
+    }
+
+    const prodHasSizes = Boolean(parsedSizes.length > 0 || Object.keys(parsedSizePrices).length > 0);
+    const prodHasColors = Boolean(parsedColors.length > 0);
     const parsedSpecs = Array.isArray(prod.specifications) && prod.specifications.length > 0
       ? prod.specifications.map(s => s.startsWith('•') ? s : `• ${s}`).join('\n')
       : (typeof prod.specifications === 'string' && prod.specifications.trim()
@@ -285,7 +324,7 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
     setEditingProduct(prod);
     setFormData({
       id: prod.id,
-      name: prod.name,
+      name: prod.name || '',
       category: prod.category || 'dresses',
       price: prod.price || '',
       oldPrice: prod.oldPrice || '',
@@ -302,10 +341,10 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
       specifications: parsedSpecs,
       inStock: prod.inStock ?? true,
       hasSizes: prodHasSizes,
-      sizes: Array.isArray(prod.sizes) ? [...prod.sizes] : [],
-      sizePrices: (prod.sizePrices && typeof prod.sizePrices === 'object') ? { ...prod.sizePrices } : {},
+      sizes: parsedSizes,
+      sizePrices: parsedSizePrices,
       hasColors: prodHasColors,
-      colors: Array.isArray(prod.colors) ? [...prod.colors] : []
+      colors: parsedColors
     });
     setCustomSizeInput('');
     setModalError('');
@@ -963,16 +1002,18 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
                     <label className="flex items-center gap-2.5 cursor-pointer">
                       <input
                         type="checkbox"
-                        checked={formData.hasColors}
+                        checked={Boolean(formData.hasColors)}
                         onChange={(e) => {
                           const checked = e.target.checked;
                           setFormData(prev => ({
                             ...prev,
                             hasColors: checked,
-                            colors: checked ? (prev.colors && prev.colors.length > 0 ? prev.colors : [
-                              { name: 'Red', hex: '#E53E3E', image: '' },
-                              { name: 'Black', hex: '#1A202C', image: '' }
-                            ]) : []
+                            colors: checked
+                              ? ((prev.colors && prev.colors.length > 0) ? prev.colors : [
+                                  { name: 'Red', hex: '#E53E3E', image: '' },
+                                  { name: 'Black', hex: '#1A202C', image: '' }
+                                ])
+                              : (prev.colors || [])
                           }));
                         }}
                         className="w-4 h-4 text-[#701A23] rounded border-gray-300 focus:ring-[#701A23] cursor-pointer"
@@ -1147,7 +1188,7 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
                     <label className="flex items-center gap-2.5 cursor-pointer">
                       <input
                         type="checkbox"
-                        checked={formData.hasSizes}
+                        checked={Boolean(formData.hasSizes)}
                         onChange={(e) => {
                           const checked = e.target.checked;
                           const catLower = (formData.category || '').toLowerCase();
@@ -1156,7 +1197,9 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
                           setFormData(prev => ({
                             ...prev,
                             hasSizes: checked,
-                            sizes: checked ? (prev.sizes && prev.sizes.length > 0 ? prev.sizes : defaultSizes) : []
+                            sizes: checked
+                              ? ((prev.sizes && prev.sizes.length > 0) ? prev.sizes : defaultSizes)
+                              : (prev.sizes || [])
                           }));
                         }}
                         className="w-4 h-4 text-[#701A23] rounded border-gray-300 focus:ring-[#701A23] cursor-pointer"

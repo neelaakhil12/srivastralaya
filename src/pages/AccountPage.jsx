@@ -82,7 +82,14 @@ function OrderCard({ order, onDownload }) {
     setTimeout(() => setCopiedTracking(false), 2500);
   };
 
-  const trackingLink = order.trackingUrl || 'https://track.dtdc.com/ctrk-tracking/tracker.html';
+  const courierTitle = order.courierName || 'DTDC Express';
+  const trackingLink = order.trackingUrl || (courierTitle.toLowerCase().includes('india post')
+    ? 'https://www.indiapost.gov.in/_layouts/15/dpt.cpt.application/tracking.aspx'
+    : (courierTitle.toLowerCase().includes('blue dart')
+      ? 'https://www.bluedart.com/tracking'
+      : (courierTitle.toLowerCase().includes('delhivery')
+        ? 'https://www.delhivery.com/tracking'
+        : 'https://track.dtdc.com/ctrk-tracking/tracker.html')));
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow overflow-hidden">
@@ -154,7 +161,7 @@ function OrderCard({ order, onDownload }) {
         </div>
       )}
 
-      {/* ── DTDC Courier Tracking Box ──────────────────────────────────── */}
+      {/* ── Courier Tracking Box ──────────────────────────────────── */}
       {order.trackingId && (
         <div className="mx-4 sm:mx-5 my-3.5 p-4 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 border border-blue-200/80 rounded-2xl shadow-2xs">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -162,7 +169,7 @@ function OrderCard({ order, onDownload }) {
               <div className="flex items-center gap-1.5">
                 <Truck className="w-4 h-4 text-blue-700" />
                 <span className="text-xs font-extrabold text-blue-900 uppercase tracking-wide">
-                  {order.courierName || 'DTDC Express'} Tracking
+                  {courierTitle} Tracking
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -200,13 +207,13 @@ function OrderCard({ order, onDownload }) {
                 onClick={() => handleCopyTracking(order.trackingId)}
                 className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-[#701A23] hover:bg-[#521117] text-white rounded-xl text-xs font-bold shadow-sm transition-all cursor-pointer whitespace-nowrap"
               >
-                <span>Track on DTDC</span>
+                <span>Track Parcel</span>
                 <ExternalLink className="w-3.5 h-3.5" />
               </a>
             </div>
           </div>
           <p className="text-[10px] text-blue-800/80 mt-2 font-medium">
-            💡 Click <strong>Copy ID</strong>, then click <strong>Track on DTDC</strong> to paste and view live parcel location.
+            💡 Click <strong>Copy ID</strong>, then click <strong>Track Parcel</strong> to view live courier status.
           </p>
         </div>
       )}
