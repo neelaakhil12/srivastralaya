@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 
 import { getStoreConfig, saveStoreConfig } from '../services/supabase';
 
+import { useAuth } from './AuthContext';
+
 const CartContext = createContext();
 
 export const syncShippingFromCloud = async () => {
@@ -41,6 +43,8 @@ export const saveShippingSettings = (settings) => {
 };
 
 export const CartProvider = ({ children }) => {
+  const { isLoggedIn, openAuthModal } = useAuth();
+
   const [cartItems, setCartItems] = useState(() => {
     try {
       const saved = localStorage.getItem('sv_cart_items');
@@ -71,6 +75,11 @@ export const CartProvider = ({ children }) => {
   }, []);
 
   const addToCart = (product, quantity = 1, selectedColor = null, selectedSize = null) => {
+    if (!isLoggedIn) {
+      if (openAuthModal) openAuthModal();
+      return false;
+    }
+
     setCartItems(prev => {
       const itemKey = `${product.id}-${selectedColor || 'default'}-${selectedSize || 'default'}`;
       const existingIndex = prev.findIndex(item => item.itemKey === itemKey);
@@ -94,6 +103,7 @@ export const CartProvider = ({ children }) => {
     });
 
     showToast(`Added "${product.name}" to your cart!`);
+    return true;
   };
 
   const removeFromCart = (itemKey) => {

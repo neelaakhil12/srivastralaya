@@ -3,11 +3,13 @@ import { Heart, ShoppingBag, Eye, Star, MessageCircle } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
 import { useUI } from '../context/UIContext';
+import { useAuth } from '../context/AuthContext';
 
 export default function ProductCard({ product }) {
   const { openQuickView } = useUI();
   const { wishlistItems, toggleWishlist } = useWishlist();
   const { addToCart } = useCart();
+  const { isLoggedIn, openAuthModal } = useAuth();
   const isLiked = wishlistItems.some((item) => item.id === product.id);
 
   // Check if product has tiered size pricing
@@ -73,7 +75,14 @@ export default function ProductCard({ product }) {
         <div className="absolute bottom-2 left-2 right-2 z-20 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-300">
           {product.inStock !== false ? (
             <button 
-              onClick={(e) => { e.stopPropagation(); addToCart(product); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!isLoggedIn) {
+                  openAuthModal();
+                  return;
+                }
+                addToCart(product);
+              }}
               className="w-full bg-[#fcf8f2] hover:bg-white text-gray-800 text-[10px] sm:text-xs font-bold py-2 sm:py-2.5 rounded shadow-sm tracking-widest cursor-pointer"
             >
               QUICK ADD

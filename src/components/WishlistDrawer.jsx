@@ -2,10 +2,12 @@ import React from 'react';
 import { X, Heart, Trash2, ShoppingBag, ArrowRight } from 'lucide-react';
 import { useWishlist } from '../context/WishlistContext';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 
 export default function WishlistDrawer({ setActivePage }) {
   const { wishlistItems, isWishlistOpen, setIsWishlistOpen, toggleWishlist } = useWishlist();
   const { addToCart } = useCart();
+  const { isLoggedIn, openAuthModal } = useAuth();
 
   if (!isWishlistOpen) return null;
 
@@ -89,6 +91,10 @@ export default function WishlistDrawer({ setActivePage }) {
                       <div className="pt-2">
                         <button
                           onClick={() => {
+                            if (!isLoggedIn) {
+                              openAuthModal();
+                              return;
+                            }
                             addToCart(item);
                             toggleWishlist(item);
                           }}

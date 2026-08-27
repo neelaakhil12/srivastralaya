@@ -163,14 +163,14 @@ function AppContent() {
 
 export default function App() {
   return (
-    <CartProvider>
-      <WishlistProvider>
-        <UIProvider>
-          <AuthProvider>
+    <AuthProvider>
+      <CartProvider>
+        <WishlistProvider>
+          <UIProvider>
             <AppContent />
-          </AuthProvider>
-        </UIProvider>
-      </WishlistProvider>
-    </CartProvider>
+          </UIProvider>
+        </WishlistProvider>
+      </CartProvider>
+    </AuthProvider>
   );
 }

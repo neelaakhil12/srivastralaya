@@ -31,7 +31,7 @@ export default function CartDrawer({ setActivePage }) {
     freeShippingThreshold, enableFreeShipping,
     amountNeededForFreeShipping, shippingConfig, clearCart
   } = useCart();
-  const { user } = useAuth();
+  const { user, isLoggedIn, openAuthModal } = useAuth();
 
   const [couponCode, setCouponCode] = useState('');
   const [discountPercent, setDiscountPercent] = useState(0);
@@ -58,6 +58,10 @@ export default function CartDrawer({ setActivePage }) {
 
   // Open Checkout Form & prefill from current user profile
   const handleOpenCheckoutForm = () => {
+    if (!isLoggedIn) {
+      openAuthModal();
+      return;
+    }
     setCustName(user?.name || '');
     setCustEmail(user?.email || '');
     setCustPhone(user?.phone ? user.phone.replace(/\D/g, '').slice(-10) : '');

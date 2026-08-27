@@ -3,11 +3,13 @@ import { X, Star, Heart, ShoppingBag, CreditCard, Check, ShieldCheck, Truck } fr
 import { useUI } from '../context/UIContext';
 import { useCart } from '../context/CartContext';
 import { useWishlist } from '../context/WishlistContext';
+import { useAuth } from '../context/AuthContext';
 
 export default function ProductQuickViewModal() {
   const { quickViewProduct, closeQuickView } = useUI();
   const { addToCart, setIsCartOpen } = useCart();
   const { toggleWishlist, isInWishlist } = useWishlist();
+  const { isLoggedIn, openAuthModal } = useAuth();
 
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
@@ -55,6 +57,10 @@ export default function ProductQuickViewModal() {
   };
 
   const handleAddToCart = () => {
+    if (!isLoggedIn) {
+      openAuthModal();
+      return;
+    }
     const activeImg = colorImage || images[selectedImage] || quickViewProduct.image;
     addToCart(
       { ...quickViewProduct, image: activeImg, price: currentPrice },
@@ -66,6 +72,10 @@ export default function ProductQuickViewModal() {
   };
 
   const handleBuyNow = () => {
+    if (!isLoggedIn) {
+      openAuthModal();
+      return;
+    }
     const activeImg = colorImage || images[selectedImage] || quickViewProduct.image;
     addToCart(
       { ...quickViewProduct, image: activeImg, price: currentPrice },
