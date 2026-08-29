@@ -20,24 +20,22 @@ export default function OurStoryPage({ setActivePage }) {
 
       {/* Main Brand Narrative */}
       <section className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center" data-aos="fade-up">
-        <div className="lg:col-span-6 relative max-w-md mx-auto lg:max-w-none w-full">
-          <div className="relative aspect-[3/4] sm:aspect-[4/5] rounded-3xl overflow-hidden shadow-2xl border-4 border-white bg-gradient-to-b from-[#FAF8F5] via-[#FAF0F1] to-[#F5ECE8]">
+        <div className="lg:col-span-6 relative">
+          <div className="relative aspect-[4/5] sm:aspect-4/3 rounded-3xl overflow-hidden shadow-2xl border-4 border-white bg-[#FAF8F5]">
             <img
-              src="/owner-pranu.png"
-              alt="Pranu - Founder & Owner of Sri Vastralaya"
-              className="w-full h-full object-cover object-top"
+              src="/products/generic-product.png"
+              alt="Sri Vastralaya Heritage"
+              className="w-full h-full object-contain p-2"
             />
-            {/* Subtle luxury gradient overlay at bottom */}
-            <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/40 via-black/10 to-transparent pointer-events-none" />
           </div>
           {/* Floating Owners Card */}
-          <div className="absolute -bottom-5 -right-3 sm:-bottom-6 sm:-right-6 bg-white/95 backdrop-blur-md p-4 sm:p-5 rounded-2xl shadow-2xl border border-gray-100 flex items-center gap-3.5 z-10">
-            <div className="w-12 h-12 bg-[#701A23] rounded-full flex items-center justify-center text-[#D4AF37] font-serif font-bold text-xl shadow-md shrink-0">
+          <div className="absolute -bottom-6 -right-6 bg-white p-5 rounded-2xl shadow-xl border border-gray-100 hidden sm:flex items-center gap-3">
+            <div className="w-12 h-12 bg-[#701A23] rounded-full flex items-center justify-center text-[#D4AF37] font-serif font-bold text-xl">
               SV
             </div>
             <div>
-              <h5 className="font-serif font-bold text-base text-gray-900 leading-tight">Pranu</h5>
-              <p className="text-xs text-[#701A23] font-semibold tracking-wide">Founder &amp; Owner</p>
+              <h5 className="font-serif font-bold text-sm text-gray-900">Pranu</h5>
+              <p className="text-xs text-[#701A23] font-semibold">Founder & Owner</p>
             </div>
           </div>
         </div>
