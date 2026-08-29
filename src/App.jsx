@@ -24,6 +24,7 @@ import OurStoryPage from './pages/OurStoryPage';
 import ContactPage from './pages/ContactPage';
 import AccountPage from './pages/AccountPage';
 import SplashScreen from './components/SplashScreen';
+import SEOHead from './components/SEOHead';
 import AdminApp from './admin/AdminApp';
 
 function AppContent() {
@@ -88,6 +89,7 @@ function AppContent() {
   if (activePage === 'admin') {
     return (
       <div className="min-h-screen bg-gray-50 font-sans antialiased text-gray-900 selection:bg-[#701A23] selection:text-white">
+        <SEOHead activePage="admin" />
         <Toast />
         <AdminApp onNavigateToStore={handleNavigateToStore} />
       </div>
@@ -96,6 +98,9 @@ function AppContent() {
 
   return (
     <div className="min-h-screen flex flex-col bg-white font-sans antialiased text-gray-900 selection:bg-[#701A23] selection:text-white">
+      {/* Dynamic SEO & OpenGraph Head */}
+      <SEOHead activePage={activePage} selectedCategory={selectedCategory} />
+
       {/* Splash Screen Animation */}
       {showSplash && <SplashScreen onComplete={() => setShowSplash(false)} />}
 

@@ -1,0 +1,20 @@
+# Sri Vastralaya Robots.txt
+# Domain: https://srivastralaya.com
+
+User-agent: *
+Allow: /
+Allow: /categories
+Allow: /products
+Allow: /our-story
+Allow: /contact
+Allow: /public/
+Allow: /logo.png
+
+# Disallow private and administrative areas
+Disallow: /admin
+Disallow: /admin/*
+Disallow: /api/
+Disallow: /api/*
+
+# Point crawlers to the XML Sitemap
+Sitemap: https://srivastralaya.com/sitemap.xml

@@ -96,7 +96,7 @@ export default function ContactPage() {
           Contact Sri Vastralaya
         </h1>
         <p className="text-gray-600 text-sm sm:text-base leading-relaxed">
-          Have a question about a product, order tracking, or saree draping guidance? Reach out to Pranu & Siri directly.
+          Have a question about a product, order tracking, or saree draping guidance? Reach out to Pranu directly.
         </p>
       </section>
 
@@ -146,7 +146,7 @@ export default function ContactPage() {
             <div className="space-y-4 text-xs sm:text-sm text-gray-200 pt-4 border-t border-[#891E2A]">
               <div className="flex items-center gap-3">
                 <User className="w-4 h-4 text-[#D4AF37]" />
-                <span>Owners: <strong className="text-white">Pranu & Siri</strong></span>
+                <span>Owner: <strong className="text-white">Pranu</strong></span>
               </div>
 
               <div className="flex items-center gap-3">
@@ -191,7 +191,7 @@ export default function ContactPage() {
               </div>
               <h4 className="font-serif text-2xl font-bold text-emerald-900">Message Received!</h4>
               <p className="text-xs text-emerald-700 max-w-md mx-auto">
-                Thank you for contacting <strong>Sri Vastralaya</strong>. Pranu & Siri will respond to your message shortly.
+                Thank you for contacting <strong>Sri Vastralaya</strong>. Pranu will respond to your message shortly.
               </p>
               <button
                 onClick={() => {

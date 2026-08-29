@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+  <!-- Homepage -->
+  <url>
+    <loc>https://srivastralaya.com/</loc>
+    <lastmod>2026-08-29</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+    <image:image>
+      <image:loc>https://srivastralaya.com/logo.png</image:loc>
+      <image:title>Sri Vastralaya - Affordable &amp; Authentic Fashion</image:title>
+      <image:caption>Handcrafted Sarees, Jewellery, Dresses &amp; Fashion Accessories</image:caption>
+    </image:image>
+  </url>
+
+  <!-- Products Catalog -->
+  <url>
+    <loc>https://srivastralaya.com/products</loc>
+    <lastmod>2026-08-29</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- Categories -->
+  <url>
+    <loc>https://srivastralaya.com/categories</loc>
+    <lastmod>2026-08-29</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Sarees Category -->
+  <url>
+    <loc>https://srivastralaya.com/products?category=sarees</loc>
+    <lastmod>2026-08-29</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.85</priority>
+  </url>
+
+  <!-- Jewellery Category -->
+  <url>
+    <loc>https://srivastralaya.com/products?category=jewellery</loc>
+    <lastmod>2026-08-29</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.85</priority>
+  </url>
+
+  <!-- Hair Accessories Category -->
+  <url>
+    <loc>https://srivastralaya.com/products?category=hair-accessories</loc>
+    <lastmod>2026-08-29</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Dresses Category -->
+  <url>
+    <loc>https://srivastralaya.com/products?category=dresses</loc>
+    <lastmod>2026-08-29</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Our Story / Heritage -->
+  <url>
+    <loc>https://srivastralaya.com/our-story</loc>
+    <lastmod>2026-08-29</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- Contact Us -->
+  <url>
+    <loc>https://srivastralaya.com/contact</loc>
+    <lastmod>2026-08-29</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+</urlset>
