@@ -218,7 +218,7 @@ export default function CartDrawer({ setActivePage }) {
       };
 
       const options = {
-        key: data.keyId || 'rzp_test_TTxuY6jG2BTZS5',
+        key: data.keyId || import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_live_TVcO0xD4rxTPu1',
         amount: data.amount,
         currency: data.currency,
         name: 'Sri Vastralaya',

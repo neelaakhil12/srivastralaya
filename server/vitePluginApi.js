@@ -16,8 +16,8 @@ const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_A
 const supabase = supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
 
 // Razorpay credentials
-const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || process.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_TTxuY6jG2BTZS5';
-const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || 'gbrnL9PsaDpECuwqNGlX2u1F';
+const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || process.env.VITE_RAZORPAY_KEY_ID || 'rzp_live_TVcO0xD4rxTPu1';
+const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || 'aPYKAniQQEps0H3duhSfRX7t';
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME || 'k1vemtdl',
@@ -166,8 +166,8 @@ export function viteApiPlugin() {
           try {
             const body = await parseBody(req);
             const { amount, currency = 'INR', receipt, notes } = body;
-            const keyId = process.env.RAZORPAY_KEY_ID || 'rzp_test_TTxuY6jG2BTZS5';
-            const keySecret = process.env.RAZORPAY_KEY_SECRET || 'gbrnL9PsaDpECuwqNGlX2u1F';
+            const keyId = process.env.RAZORPAY_KEY_ID || 'rzp_live_TVcO0xD4rxTPu1';
+            const keySecret = process.env.RAZORPAY_KEY_SECRET || 'aPYKAniQQEps0H3duhSfRX7t';
             const amountInPaise = Math.round(Number(amount) * 100);
             const authHeader = 'Basic ' + Buffer.from(`${keyId}:${keySecret}`).toString('base64');
 
@@ -211,7 +211,7 @@ export function viteApiPlugin() {
           try {
             const body = await parseBody(req);
             const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = body;
-            const keySecret = process.env.RAZORPAY_KEY_SECRET || 'gbrnL9PsaDpECuwqNGlX2u1F';
+            const keySecret = process.env.RAZORPAY_KEY_SECRET || 'aPYKAniQQEps0H3duhSfRX7t';
 
             if (razorpay_order_id && razorpay_signature) {
               const generatedSignature = crypto

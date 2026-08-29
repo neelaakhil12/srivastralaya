@@ -3,7 +3,7 @@ import crypto from 'crypto';
 /**
  * Vercel Serverless Function: Verify Razorpay Payment Signature
  */
-const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || process.env.VITE_RAZORPAY_KEY_SECRET || 'gbrnL9PsaDpECuwqNGlX2u1F';
+const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || process.env.VITE_RAZORPAY_KEY_SECRET || 'aPYKAniQQEps0H3duhSfRX7t';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');

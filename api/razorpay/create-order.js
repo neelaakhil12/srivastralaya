@@ -1,8 +1,8 @@
 /**
  * Vercel Serverless Function: Create Razorpay Order
  */
-const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || process.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_TTxuY6jG2BTZS5';
-const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || process.env.VITE_RAZORPAY_KEY_SECRET || 'gbrnL9PsaDpECuwqNGlX2u1F';
+const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || process.env.VITE_RAZORPAY_KEY_ID || 'rzp_live_TVcO0xD4rxTPu1';
+const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || process.env.VITE_RAZORPAY_KEY_SECRET || 'aPYKAniQQEps0H3duhSfRX7t';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
