@@ -23,6 +23,8 @@ import ProductsPage from './pages/ProductsPage';
 import OurStoryPage from './pages/OurStoryPage';
 import ContactPage from './pages/ContactPage';
 import AccountPage from './pages/AccountPage';
+import TermsPage from './pages/TermsPage';
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import SplashScreen from './components/SplashScreen';
 import SEOHead from './components/SEOHead';
 import AdminApp from './admin/AdminApp';
@@ -144,6 +146,12 @@ function AppContent() {
         )}
         {activePage === 'account' && (
           <AccountPage setActivePage={setActivePage} />
+        )}
+        {activePage === 'terms' && (
+          <TermsPage setActivePage={setActivePage} />
+        )}
+        {activePage === 'privacy' && (
+          <PrivacyPolicyPage setActivePage={setActivePage} />
         )}
       </main>
 

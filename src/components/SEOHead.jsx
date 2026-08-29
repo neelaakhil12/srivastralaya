@@ -32,6 +32,8 @@ export default function SEOHead({ activePage = 'home', selectedCategory = 'all' 
         'our-story': 'Our Story',
         contact: 'Contact Us',
         account: 'My Account',
+        terms: 'Terms & Conditions',
+        privacy: 'Privacy Policy',
         admin: 'Admin Portal'
       };
       breadcrumbList.push({

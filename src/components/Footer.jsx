@@ -83,31 +83,21 @@ export default function Footer({ setActivePage, onCategorySelect }) {
               QUICK LINKS
             </h4>
             <ul className="space-y-2 text-xs sm:text-sm">
-              {['Home', 'Categories', 'Products', 'Our Story', 'Contact'].map((item) => {
-                const pageKey = item.toLowerCase().replace(' ', '-');
+              {['Home', 'Categories', 'Products', 'Our Story', 'Contact', 'Terms & Conditions', 'Privacy Policy'].map((item) => {
+                let pageKey = item.toLowerCase().replace(/ & /g, '-').replace(/ /g, '-');
+                if (item === 'Terms & Conditions') pageKey = 'terms';
+                if (item === 'Privacy Policy') pageKey = 'privacy';
                 return (
                   <li key={item}>
                     <button
                       onClick={() => handleNav(pageKey === 'home' ? 'home' : pageKey)}
-                      className="text-gray-300 hover:text-[#D4AF37] transition-colors flex items-center gap-1.5"
+                      className="text-gray-300 hover:text-[#D4AF37] transition-colors flex items-center gap-1.5 cursor-pointer"
                     >
                       <span className="text-[#D4AF37]">›</span> {item}
                     </button>
                   </li>
                 );
               })}
-              <li>
-                <button
-                  onClick={() => {
-                    setActivePage('admin');
-                    window.history.pushState({}, '', '/admin');
-                    scrollToTop();
-                  }}
-                  className="text-gray-300 hover:text-[#D4AF37] transition-colors flex items-center gap-1.5 font-semibold text-[#D4AF37]/90"
-                >
-                  <span className="text-[#D4AF37]">›</span> Admin Portal 🔐
-                </button>
-              </li>
             </ul>
           </div>
 
@@ -174,11 +164,27 @@ export default function Footer({ setActivePage, onCategorySelect }) {
 
         {/* Bottom copyright & scroll to top */}
         <div className="pt-6 border-t border-[#521117] flex flex-col sm:flex-row justify-between items-center gap-4 text-xs text-gray-400">
-          <p>© 2026 SV Sri Vastralaya. All Rights Reserved.</p>
+          <div className="flex flex-wrap items-center justify-center sm:justify-start gap-x-4 gap-y-1">
+            <p>© 2026 SV Sri Vastralaya. All Rights Reserved.</p>
+            <span className="hidden sm:inline text-gray-600">•</span>
+            <button
+              onClick={() => handleNav('privacy')}
+              className="hover:text-[#D4AF37] transition-colors cursor-pointer"
+            >
+              Privacy Policy
+            </button>
+            <span className="text-gray-600">•</span>
+            <button
+              onClick={() => handleNav('terms')}
+              className="hover:text-[#D4AF37] transition-colors cursor-pointer"
+            >
+              Terms &amp; Conditions
+            </button>
+          </div>
           <div className="flex items-center gap-1 text-gray-400">
             <span>Crafted with</span>
             <Heart className="w-3.5 h-3.5 text-[#D4AF37] fill-[#D4AF37]" />
-            <span>for timeless style & affordability.</span>
+            <span>for timeless style &amp; affordability.</span>
           </div>
           <button
             onClick={scrollToTop}

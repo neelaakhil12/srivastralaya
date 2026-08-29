@@ -49,6 +49,18 @@ export const PAGE_SEO = {
     keywords: 'Sri Vastralaya account, order history, profile settings',
     path: '/account'
   },
+  terms: {
+    title: 'Terms & Conditions | Sri Vastralaya',
+    description: 'Read the terms and conditions, pricing, shipping timeline, and exchange policy for shopping on Sri Vastralaya.',
+    keywords: 'terms and conditions, return policy, shipping policy, Sri Vastralaya terms',
+    path: '/terms'
+  },
+  privacy: {
+    title: 'Privacy Policy | Sri Vastralaya',
+    description: 'Learn how Sri Vastralaya collects, protects, and handles your personal information and online payment security.',
+    keywords: 'privacy policy, data security, customer privacy, Sri Vastralaya privacy',
+    path: '/privacy'
+  },
   admin: {
     title: 'Admin Management Portal 🔐 | Sri Vastralaya',
     description: 'Sri Vastralaya Administrative and Catalog Management Dashboard.',
