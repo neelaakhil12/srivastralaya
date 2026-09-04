@@ -28,6 +28,7 @@ export const getShippingSettings = () => {
     standardShippingFee: 99,
     freeShippingThreshold: 2000,
     enableFreeShipping: true,
+    enableCOD: true,
     deliveryNote: 'Fast Shipping Across India'
   };
 };
@@ -135,6 +136,7 @@ export const CartProvider = ({ children }) => {
   const standardShippingFee = Number(shippingConfig.standardShippingFee ?? 99);
   const freeShippingThreshold = Number(shippingConfig.freeShippingThreshold ?? 2000);
   const enableFreeShipping = Boolean(shippingConfig.enableFreeShipping ?? true);
+  const enableCOD = Boolean(shippingConfig.enableCOD ?? true);
 
   const isFreeShipping = standardShippingFee === 0 || (enableFreeShipping && subtotal >= freeShippingThreshold);
   const currentShippingCharge = isFreeShipping ? 0 : standardShippingFee;
@@ -156,6 +158,7 @@ export const CartProvider = ({ children }) => {
       currentShippingCharge,
       freeShippingThreshold,
       enableFreeShipping,
+      enableCOD,
       isFreeShipping,
       amountNeededForFreeShipping,
       toastMessage,

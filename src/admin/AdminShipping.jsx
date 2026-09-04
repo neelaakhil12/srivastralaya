@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Truck, Check, Save, Sparkles, ShieldCheck, AlertCircle, RefreshCw } from 'lucide-react';
+import { Truck, Check, Save, Sparkles, ShieldCheck, AlertCircle, RefreshCw, Banknote } from 'lucide-react';
 import { getShippingSettings, saveShippingSettings } from '../context/CartContext';
 
 export default function AdminShipping() {
   const [standardFee, setStandardFee] = useState(99);
   const [freeThreshold, setFreeThreshold] = useState(2000);
   const [enableFreeShipping, setEnableFreeShipping] = useState(true);
+  const [enableCOD, setEnableCOD] = useState(true);
   const [deliveryNote, setDeliveryNote] = useState('Fast Shipping Across India');
   const [savedSuccess, setSavedSuccess] = useState(false);
 
@@ -14,6 +15,7 @@ export default function AdminShipping() {
     setStandardFee(settings.standardShippingFee ?? 99);
     setFreeThreshold(settings.freeShippingThreshold ?? 2000);
     setEnableFreeShipping(settings.enableFreeShipping ?? true);
+    setEnableCOD(settings.enableCOD !== false);
     setDeliveryNote(settings.deliveryNote || 'Fast Shipping Across India');
   }, []);
 
@@ -23,6 +25,7 @@ export default function AdminShipping() {
       standardShippingFee: Math.max(0, Number(standardFee) || 0),
       freeShippingThreshold: Math.max(0, Number(freeThreshold) || 0),
       enableFreeShipping: Boolean(enableFreeShipping),
+      enableCOD: Boolean(enableCOD),
       deliveryNote: deliveryNote.trim() || 'Fast Shipping Across India'
     };
 
@@ -32,15 +35,17 @@ export default function AdminShipping() {
   };
 
   const handleResetDefaults = () => {
-    if (!window.confirm('Reset shipping charges to defaults (₹99 delivery, free above ₹2000)?')) return;
+    if (!window.confirm('Reset shipping & payment settings to defaults (₹99 delivery, free above ₹2000, COD enabled)?')) return;
     setStandardFee(99);
     setFreeThreshold(2000);
     setEnableFreeShipping(true);
+    setEnableCOD(true);
     setDeliveryNote('Fast Shipping Across India');
     saveShippingSettings({
       standardShippingFee: 99,
       freeShippingThreshold: 2000,
       enableFreeShipping: true,
+      enableCOD: true,
       deliveryNote: 'Fast Shipping Across India'
     });
     setSavedSuccess(true);
@@ -162,6 +167,45 @@ export default function AdminShipping() {
             )}
           </div>
 
+          {/* Cash on Delivery (COD) Option Toggle */}
+          <div className="p-4 bg-emerald-50/70 border border-emerald-200 rounded-2xl space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <Banknote className="w-4 h-4 text-emerald-700 shrink-0" />
+                  <span className="text-xs sm:text-sm font-bold text-gray-900">
+                    Enable Cash on Delivery (COD) in Payment Form
+                  </span>
+                </div>
+                <p className="text-[11px] text-gray-500 mt-1">
+                  When turned ON, customers will see Cash on Delivery option in the checkout form. When turned OFF, Cash on Delivery is completely removed from the checkout form.
+                </p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                <input
+                  type="checkbox"
+                  checked={enableCOD}
+                  onChange={(e) => setEnableCOD(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+              </label>
+            </div>
+
+            <div className={`text-[11px] font-bold px-3 py-1.5 rounded-xl inline-flex items-center gap-2 border transition-all ${
+              enableCOD
+                ? 'bg-emerald-100/80 text-emerald-900 border-emerald-300'
+                : 'bg-rose-50 text-rose-800 border-rose-200'
+            }`}>
+              <span className={`w-2 h-2 rounded-full ${enableCOD ? 'bg-emerald-600 animate-pulse' : 'bg-rose-500'}`} />
+              <span>
+                {enableCOD
+                  ? 'Active: Customers can choose Cash on Delivery during checkout'
+                  : 'Disabled: Cash on Delivery option is hidden from checkout form'}
+              </span>
+            </div>
+          </div>
+
           {/* Delivery Tagline / Micro-copy */}
           <div>
             <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-1.5">
@@ -234,8 +278,37 @@ export default function AdminShipping() {
               </div>
             )}
 
+            {/* Payment Methods Preview */}
+            <div className="p-3.5 bg-gray-50 rounded-2xl space-y-2 text-xs border border-gray-100">
+              <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Active Payment Methods in Checkout</p>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between p-2 bg-white rounded-xl border border-gray-200">
+                  <span className="font-bold text-gray-800 flex items-center gap-1.5">
+                    💳 Online (UPI / Cards / Netbanking)
+                  </span>
+                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
+                    Always Active
+                  </span>
+                </div>
+                <div className={`flex items-center justify-between p-2 rounded-xl border ${
+                  enableCOD
+                    ? 'bg-white border-emerald-300'
+                    : 'bg-gray-100/60 border-dashed border-gray-300 opacity-60'
+                }`}>
+                  <span className="font-bold text-gray-800 flex items-center gap-1.5">
+                    💵 Cash on Delivery (COD)
+                  </span>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                    enableCOD ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-200 text-gray-600'
+                  }`}>
+                    {enableCOD ? 'Visible in Form' : 'Hidden from Form'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
             <div className="text-[11px] text-gray-400 flex items-center gap-1.5">
-              <Truck className="w-3.5 h-3.5 text-emerald-600" />
+              <Truck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
               <span>{deliveryNote}</span>
             </div>
           </div>

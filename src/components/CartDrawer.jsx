@@ -16,7 +16,8 @@ import {
   Loader,
   ShieldCheck,
   Navigation,
-  Download
+  Download,
+  Banknote
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
@@ -28,7 +29,7 @@ export default function CartDrawer({ setActivePage }) {
     cartItems, isCartOpen, setIsCartOpen,
     removeFromCart, updateQuantity, subtotal,
     isFreeShipping, currentShippingCharge, standardShippingFee,
-    freeShippingThreshold, enableFreeShipping,
+    freeShippingThreshold, enableFreeShipping, enableCOD,
     amountNeededForFreeShipping, shippingConfig, clearCart
   } = useCart();
   const { user, isLoggedIn, openAuthModal } = useAuth();
@@ -40,6 +41,7 @@ export default function CartDrawer({ setActivePage }) {
 
   // Checkout flow states: 'cart' | 'form' | 'success'
   const [checkoutView, setCheckoutView] = useState('cart');
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('online'); // 'online' | 'cod'
   const [payLoading, setPayLoading] = useState(false);
   const [payError, setPayError] = useState('');
   const [successOrderId, setSuccessOrderId] = useState('');
@@ -290,6 +292,77 @@ export default function CartDrawer({ setActivePage }) {
     }
   };
 
+  // ── Cash on Delivery (COD) Order Placement ──────────────────────────────
+  const handlePlaceCODOrder = async () => {
+    if (!custName.trim()) return setPayError('Please enter your full name.');
+    if (!custEmail.trim() || !custEmail.includes('@')) return setPayError('Please enter a valid email address.');
+    if (!/^[6-9]\d{9}$/.test(custPhone.trim())) return setPayError('Please enter a valid 10-digit mobile number.');
+    if (!custAddress.trim()) return setPayError('Please enter your complete delivery address.');
+    if (!/^\d{6}$/.test(custPincode.trim())) return setPayError('Please enter a valid 6-digit delivery pincode.');
+
+    setPayError('');
+    setPayLoading(true);
+    const orderId = `ORD-${Date.now().toString().slice(-8)}`;
+    const fullAddress = `${custAddress.trim()}, PIN: ${custPincode.trim()}`;
+
+    const codOrder = {
+      id: orderId,
+      customerName: custName.trim(),
+      customerPhone: custPhone.trim(),
+      customerEmail: custEmail.trim(),
+      customerAddress: fullAddress,
+      pincode: custPincode.trim(),
+      items: cartItems.map(i => ({
+        id: i.id,
+        name: i.name,
+        selectedColor: i.selectedColor || null,
+        selectedSize: i.selectedSize || null,
+        price: i.price,
+        quantity: i.quantity,
+        image: i.image
+      })),
+      subtotal,
+      discount: discountAmount,
+      shipping: shippingCharge,
+      total: grandTotal,
+      status: 'Order Accepted',
+      paymentMethod: 'Cash on Delivery (COD)'
+    };
+
+    try {
+      // 1. Save order to Supabase
+      try {
+        await addOrder(codOrder);
+      } catch (err) {
+        console.warn('Supabase addOrder warning:', err);
+      }
+
+      // 2. Save order to local user orders for instant history display
+      try {
+        const existing = JSON.parse(localStorage.getItem('sv_user_orders') || '[]');
+        localStorage.setItem('sv_user_orders', JSON.stringify([codOrder, ...existing]));
+      } catch (e) {}
+
+      setCompletedOrderData(codOrder);
+      setSuccessOrderId(orderId);
+      clearCart();
+      setCheckoutView('success');
+    } catch (err) {
+      setPayError(`Failed to place COD order: ${err.message}`);
+    } finally {
+      setPayLoading(false);
+    }
+  };
+
+  // Master Checkout Form Submit (Online vs COD)
+  const handleCheckoutSubmit = (e) => {
+    e.preventDefault();
+    if (enableCOD && selectedPaymentMethod === 'cod') {
+      return handlePlaceCODOrder();
+    }
+    return handleRazorpayPayment(e);
+  };
+
   // ── Share on WhatsApp & Navigate to User Account Order History ────────────
   const handleConfirmAndWhatsApp = () => {
     const order = completedOrderData || {
@@ -305,7 +378,11 @@ export default function CartDrawer({ setActivePage }) {
     // Format clean, plain text WhatsApp message without stars or symbols
     let text = `NEW ORDER CONFIRMED - Sri Vastralaya\n\n`;
     text += `Order ID: #${order.id}\n`;
-    if (order.paymentId) text += `Payment ID: ${order.paymentId} (Paid via Razorpay)\n`;
+    if (order.paymentId) {
+      text += `Payment ID: ${order.paymentId} (Paid via Razorpay)\n`;
+    } else if (order.paymentMethod) {
+      text += `Payment Method: ${order.paymentMethod}\n`;
+    }
     text += `\nCustomer Details:\n`;
     text += `Name: ${order.customerName || custName}\n`;
     text += `Mobile: ${order.customerPhone || custPhone}\n`;
@@ -320,7 +397,11 @@ export default function CartDrawer({ setActivePage }) {
       text += `${index + 1}. ${item.name}${colorTag}${sizeTag} - Qty: ${item.quantity} x Rs.${item.price} = Rs.${item.price * item.quantity}\n`;
     });
 
-    text += `\nTotal Amount Paid: Rs.${Number(order.total || grandTotal).toLocaleString('en-IN')}\n\n`;
+    if (order.paymentMethod?.includes('COD') || order.paymentMethod?.includes('Cash')) {
+      text += `\nTotal Amount to Pay on Delivery: Rs.${Number(order.total || grandTotal).toLocaleString('en-IN')} (COD)\n\n`;
+    } else {
+      text += `\nTotal Amount Paid: Rs.${Number(order.total || grandTotal).toLocaleString('en-IN')}\n\n`;
+    }
     text += `Please dispatch my order soon. Thank you!`;
 
     // 1. Open WhatsApp
@@ -388,15 +469,35 @@ export default function CartDrawer({ setActivePage }) {
                     Order Confirmed!
                   </h3>
                   <p className="text-xs text-gray-500 mt-1">
-                    Your payment was successful and your order has been received.
+                    {completedOrderData?.paymentMethod?.includes('COD')
+                      ? 'Your Cash on Delivery order has been successfully placed.'
+                      : 'Your payment was successful and your order has been received.'}
                   </p>
                 </div>
+
+                {completedOrderData?.paymentMethod?.includes('COD') && (
+                  <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl text-left text-xs text-emerald-900 flex items-start gap-2.5">
+                    <Banknote className="w-5 h-5 text-emerald-700 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-bold">Cash on Delivery Verified</p>
+                      <p className="text-[11px] text-emerald-700 mt-0.5">
+                        Please keep <strong>₹{grandTotal.toLocaleString('en-IN')}</strong> in cash ready to hand over to the delivery executive.
+                      </p>
+                    </div>
+                  </div>
+                )}
 
                 {/* Order Summary Card */}
                 <div className="bg-[#FAF0F1] border border-[#F5DCD0] rounded-2xl p-4 text-left space-y-2.5 shadow-2xs">
                   <div className="flex justify-between items-center border-b border-[#F5DCD0] pb-2">
                     <span className="text-xs text-gray-500 font-medium">Order ID</span>
                     <span className="text-sm font-bold text-[#701A23]">#{successOrderId}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-gray-500">Payment Mode</span>
+                    <span className="font-bold text-gray-800">
+                      {completedOrderData?.paymentMethod || (selectedPaymentMethod === 'cod' ? 'Cash on Delivery (COD)' : 'Online (Razorpay)')}
+                    </span>
                   </div>
                   <div className="flex justify-between items-center text-xs">
                     <span className="text-gray-500">Customer</span>
@@ -413,7 +514,9 @@ export default function CartDrawer({ setActivePage }) {
                     </span>
                   </div>
                   <div className="flex justify-between items-center border-t border-[#F5DCD0] pt-2">
-                    <span className="text-xs font-bold text-gray-700">Total Paid</span>
+                    <span className="text-xs font-bold text-gray-700">
+                      {completedOrderData?.paymentMethod?.includes('COD') ? 'Amount to Pay on Delivery' : 'Total Paid'}
+                    </span>
                     <span className="text-base font-extrabold text-[#701A23]">
                       ₹{grandTotal.toLocaleString('en-IN')}
                     </span>
@@ -484,7 +587,7 @@ export default function CartDrawer({ setActivePage }) {
                 </span>
               </div>
 
-              <form onSubmit={handleRazorpayPayment} className="p-5 space-y-3.5">
+              <form onSubmit={handleCheckoutSubmit} className="p-5 space-y-3.5">
                 {/* Full Name */}
                 <div>
                   <label className="block text-xs font-bold text-gray-700 mb-1 uppercase tracking-wide">
@@ -629,14 +732,88 @@ export default function CartDrawer({ setActivePage }) {
                   </div>
                 </div>
 
-                {/* Submit to Open Razorpay */}
+                {/* Payment Method Selector (Shown ONLY when enableCOD toggle is turned ON by admin) */}
+                {enableCOD && (
+                  <div className="space-y-2 pt-2 border-t border-gray-100">
+                    <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide">
+                      Choose Payment Method:
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {/* Online Payment Card */}
+                      <div
+                        onClick={() => setSelectedPaymentMethod('online')}
+                        className={`p-3 rounded-xl border-2 transition-all cursor-pointer flex items-center justify-between gap-2.5 ${
+                          selectedPaymentMethod === 'online'
+                            ? 'border-[#701A23] bg-[#FAF0F1]/70 shadow-2xs'
+                            : 'border-gray-200 bg-white hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                            selectedPaymentMethod === 'online' ? 'bg-[#701A23] text-white' : 'bg-gray-100 text-gray-600'
+                          }`}>
+                            <CreditCard className="w-4 h-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-gray-900 leading-tight truncate">Online Payment</p>
+                            <p className="text-[10px] text-gray-500 truncate">UPI, Cards, Netbanking</p>
+                          </div>
+                        </div>
+                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
+                          selectedPaymentMethod === 'online' ? 'border-[#701A23] bg-[#701A23]' : 'border-gray-300'
+                        }`}>
+                          {selectedPaymentMethod === 'online' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                        </div>
+                      </div>
+
+                      {/* Cash on Delivery Card */}
+                      <div
+                        onClick={() => setSelectedPaymentMethod('cod')}
+                        className={`p-3 rounded-xl border-2 transition-all cursor-pointer flex items-center justify-between gap-2.5 ${
+                          selectedPaymentMethod === 'cod'
+                            ? 'border-emerald-700 bg-emerald-50/70 shadow-2xs'
+                            : 'border-gray-200 bg-white hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
+                            selectedPaymentMethod === 'cod' ? 'bg-emerald-700 text-white' : 'bg-gray-100 text-gray-600'
+                          }`}>
+                            <Banknote className="w-4 h-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold text-gray-900 leading-tight truncate">Cash on Delivery</p>
+                            <p className="text-[10px] text-emerald-700 font-semibold truncate">Pay cash at doorstep</p>
+                          </div>
+                        </div>
+                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
+                          selectedPaymentMethod === 'cod' ? 'border-emerald-700 bg-emerald-700' : 'border-gray-300'
+                        }`}>
+                          {selectedPaymentMethod === 'cod' && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Submit Button (Dynamically toggles between Online Razorpay vs Cash on Delivery) */}
                 <button
                   type="submit"
                   disabled={payLoading}
-                  className="w-full flex items-center justify-center gap-2 bg-[#701A23] hover:bg-[#521117] text-white py-3.5 px-4 rounded-xl font-bold text-sm shadow-lg hover:shadow-xl transition-all cursor-pointer disabled:opacity-60"
+                  className={`w-full flex items-center justify-center gap-2 text-white py-3.5 px-4 rounded-xl font-bold text-sm shadow-lg hover:shadow-xl transition-all cursor-pointer disabled:opacity-60 ${
+                    enableCOD && selectedPaymentMethod === 'cod'
+                      ? 'bg-emerald-700 hover:bg-emerald-800'
+                      : 'bg-[#701A23] hover:bg-[#521117]'
+                  }`}
                 >
                   {payLoading ? (
                     <Loader className="w-5 h-5 animate-spin" />
+                  ) : enableCOD && selectedPaymentMethod === 'cod' ? (
+                    <>
+                      <Banknote className="w-5 h-5" />
+                      <span>Place Order (Cash on Delivery) · ₹{grandTotal.toLocaleString('en-IN')}</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </>
                   ) : (
                     <>
                       <CreditCard className="w-5 h-5" />
@@ -647,7 +824,9 @@ export default function CartDrawer({ setActivePage }) {
                 </button>
 
                 <p className="text-center text-[10px] text-gray-400">
-                  🔒 100% Secure Checkout via Razorpay · UPI · Cards · Netbanking
+                  {enableCOD && selectedPaymentMethod === 'cod'
+                    ? '💵 Cash on Delivery Verified · Please keep exact cash ready upon delivery'
+                    : '🔒 100% Secure Checkout via Razorpay · UPI · Cards · Netbanking'}
                 </p>
 
                 <button
