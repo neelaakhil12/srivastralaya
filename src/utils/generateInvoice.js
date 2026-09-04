@@ -110,10 +110,11 @@ export async function generateInvoice(order) {
   doc.line(margin + 4, y + 8, margin + boxW - 4, y + 8);
 
   doc.setFontSize(8);
+  const isCOD = (order.paymentMethod || '').toLowerCase().includes('cod') || (order.paymentMethod || '').toLowerCase().includes('cash');
   const orderDetails = [
     ['Order ID:', `#${order.id || 'N/A'}`],
     ['Order Date:', invoiceDate],
-    ['Payment Mode:', order.paymentMethod || 'Online (Razorpay)'],
+    ['Payment Mode:', isCOD ? 'Cash on Delivery (COD) - COLLECT CASH' : (order.paymentMethod || 'Online (Razorpay)')],
     ['Order Status:', order.status || 'Confirmed']
   ];
 
@@ -286,21 +287,40 @@ export async function generateInvoice(order) {
 
   // ─── 5. SECURITY & CONFIRMATION BADGE (LEFT OF TOTALS) ────────────────────
   const badgeY = y - 14;
-  doc.setFillColor(240, 249, 244); // light emerald
-  doc.setDrawColor(167, 243, 208);
-  doc.roundedRect(margin, badgeY, 80, 24, 2, 2, 'FD');
+  if (isCOD) {
+    doc.setFillColor(254, 243, 199); // warm amber
+    doc.setDrawColor(245, 158, 11);
+    doc.roundedRect(margin, badgeY, 80, 24, 2, 2, 'FD');
 
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(8.5);
-  doc.setTextColor(6, 95, 70);
-  doc.text('✓ ORDER VERIFIED & CONFIRMED', margin + 4, badgeY + 6);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(180, 83, 9);
+    doc.text('CASH ON DELIVERY (COD)', margin + 4, badgeY + 6);
 
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.5);
-  doc.setTextColor(50, 70, 60);
-  doc.text('• 100% Genuine Handcrafted & Curated Quality', margin + 4, badgeY + 11);
-  doc.text('• Fast DTDC / BlueDart Tracked Delivery', margin + 4, badgeY + 16);
-  doc.text('• Official Digital Tax Invoice for Sri Vastralaya', margin + 4, badgeY + 21);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    doc.setTextColor(146, 64, 14);
+    doc.text(`• COLLECT Rs. ${grandTotal.toLocaleString('en-IN')} CASH ON DELIVERY`, margin + 4, badgeY + 11);
+    doc.setFont('helvetica', 'normal');
+    doc.text('• Fast Tracked Courier Express Delivery', margin + 4, badgeY + 16);
+    doc.text('• Official Digital Tax Invoice for Sri Vastralaya', margin + 4, badgeY + 21);
+  } else {
+    doc.setFillColor(240, 249, 244); // light emerald
+    doc.setDrawColor(167, 243, 208);
+    doc.roundedRect(margin, badgeY, 80, 24, 2, 2, 'FD');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8.5);
+    doc.setTextColor(6, 95, 70);
+    doc.text('✓ ORDER VERIFIED & CONFIRMED', margin + 4, badgeY + 6);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+    doc.setTextColor(50, 70, 60);
+    doc.text('• 100% Genuine Handcrafted & Curated Quality', margin + 4, badgeY + 11);
+    doc.text('• Fast DTDC / BlueDart Tracked Delivery', margin + 4, badgeY + 16);
+    doc.text('• Official Digital Tax Invoice for Sri Vastralaya', margin + 4, badgeY + 21);
+  }
 
   // ─── 6. POLISHED FOOTER ───────────────────────────────────────────────────
   const footerHeight = 22;

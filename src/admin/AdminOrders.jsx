@@ -12,15 +12,27 @@ import {
   Truck,
   ExternalLink,
   Check,
-  Save
+  Save,
+  Banknote,
+  CreditCard,
+  AlertCircle,
+  FileText
 } from 'lucide-react';
 import { getOrders, updateOrderStatus, updateOrderTracking, addOrder, deleteOrder } from '../services/supabase';
+import { generateInvoice } from '../utils/generateInvoice';
 
 export default function AdminOrders({ onNavigateShipping }) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [paymentFilter, setPaymentFilter] = useState('all');
+
+  // Helper to reliably identify Cash on Delivery orders
+  const isCODOrder = (order) => {
+    const pm = (order?.paymentMethod || '').toLowerCase();
+    return pm.includes('cod') || pm.includes('cash');
+  };
 
   // Order Details Modal
   const [selectedOrder, setSelectedOrder] = useState(null);
@@ -139,11 +151,17 @@ export default function AdminOrders({ onNavigateShipping }) {
   };
 
   const filteredOrders = orders.filter(order => {
-    const matchesSearch = (order.id && order.id.toLowerCase().includes(searchQuery.toLowerCase())) ||
-                          (order.customerName && order.customerName.toLowerCase().includes(searchQuery.toLowerCase())) ||
-                          (order.customerPhone && order.customerPhone.includes(searchQuery));
+    const q = searchQuery.toLowerCase().trim();
+    const matchesSearch = !q ||
+                          (order.id && order.id.toLowerCase().includes(q)) ||
+                          (order.customerName && order.customerName.toLowerCase().includes(q)) ||
+                          (order.customerPhone && order.customerPhone.includes(q)) ||
+                          (order.paymentMethod && order.paymentMethod.toLowerCase().includes(q));
     const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesPayment = paymentFilter === 'all' ||
+                           (paymentFilter === 'cod' && isCODOrder(order)) ||
+                           (paymentFilter === 'online' && !isCODOrder(order));
+    return matchesSearch && matchesStatus && matchesPayment;
   });
 
   return (
@@ -177,16 +195,26 @@ export default function AdminOrders({ onNavigateShipping }) {
 
         {/* Filters */}
         <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-gray-100">
-          <div className="relative flex-1 min-w-[180px]">
+          <div className="relative flex-1 min-w-[200px]">
             <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search order ID, customer or phone..."
+              placeholder="Search order ID, customer, phone, or COD..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#701A23]"
             />
           </div>
+
+          <select
+            value={paymentFilter}
+            onChange={(e) => setPaymentFilter(e.target.value)}
+            className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#701A23]"
+          >
+            <option value="all">All Payments</option>
+            <option value="cod">💵 Cash on Delivery (COD)</option>
+            <option value="online">💳 Paid Online</option>
+          </select>
 
           <select
             value={statusFilter}
@@ -230,9 +258,22 @@ export default function AdminOrders({ onNavigateShipping }) {
                         {order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Today'}
                       </p>
                     </div>
-                    <span className="font-extrabold text-sm text-[#701A23]">
-                      ₹{Number(order.total).toLocaleString('en-IN')}
-                    </span>
+                    <div className="text-right">
+                      <span className="font-extrabold text-sm text-[#701A23] block">
+                        ₹{Number(order.total).toLocaleString('en-IN')}
+                      </span>
+                      {isCODOrder(order) ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 mt-1 shadow-2xs">
+                          <Banknote className="w-3 h-3 text-amber-700" />
+                          <span>Cash on Delivery</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 mt-1">
+                          <CreditCard className="w-3 h-3 text-emerald-600" />
+                          <span>Paid Online</span>
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   <div className="flex justify-between items-center text-xs">
@@ -313,7 +354,7 @@ export default function AdminOrders({ onNavigateShipping }) {
                     <th className="py-3.5 px-4">Order ID</th>
                     <th className="py-3.5 px-4">Customer Details</th>
                     <th className="py-3.5 px-4">Items Count</th>
-                    <th className="py-3.5 px-4">Total Amount</th>
+                    <th className="py-3.5 px-4">Total &amp; Payment</th>
                     <th className="py-3.5 px-4">Date</th>
                     <th className="py-3.5 px-4">Status</th>
                     <th className="py-3.5 px-4 text-right">Actions</th>
@@ -336,9 +377,22 @@ export default function AdminOrders({ onNavigateShipping }) {
                         {order.items?.length || 1} items
                       </td>
                       <td className="py-3.5 px-4">
-                        <span className="font-extrabold text-sm text-[#701A23]">
-                          ₹{Number(order.total).toLocaleString('en-IN')}
-                        </span>
+                        <div className="space-y-1">
+                          <span className="font-extrabold text-sm text-[#701A23] block">
+                            ₹{Number(order.total).toLocaleString('en-IN')}
+                          </span>
+                          {isCODOrder(order) ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs whitespace-nowrap">
+                              <Banknote className="w-3 h-3 text-amber-700" />
+                              <span>Cash on Delivery</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 whitespace-nowrap">
+                              <CreditCard className="w-3 h-3 text-emerald-600" />
+                              <span>Paid Online</span>
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="py-3.5 px-4 text-gray-500 text-[11px]">
                         {order.createdAt ? new Date(order.createdAt).toLocaleDateString('en-IN', {
@@ -427,8 +481,8 @@ export default function AdminOrders({ onNavigateShipping }) {
       {/* Order Details Drawer / Modal */}
       {selectedOrder && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-2.5 sm:p-4">
-          <div className="bg-white rounded-2xl sm:rounded-3xl max-w-lg w-full p-4 sm:p-8 shadow-2xl relative animate-fadeIn border border-gray-100 max-h-[94vh] overflow-y-auto overflow-x-hidden min-w-0 my-auto">
-            <div className="flex items-center justify-between pb-4 border-b border-gray-100">
+          <div className="bg-white rounded-2xl sm:rounded-3xl max-w-lg w-full p-4 sm:p-7 shadow-2xl relative animate-fadeIn border border-gray-100 max-h-[94vh] overflow-y-auto overflow-x-hidden min-w-0 my-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-gray-100">
               <div className="min-w-0 flex-1 pr-2">
                 <span className="text-[11px] font-mono text-gray-400">Order Summary</span>
                 <h3 className="font-serif font-bold text-lg sm:text-xl text-gray-900 truncate">
@@ -443,14 +497,70 @@ export default function AdminOrders({ onNavigateShipping }) {
               </button>
             </div>
 
+            {/* HIGH VISIBILITY CASH ON DELIVERY (COD) BANNER */}
+            {isCODOrder(selectedOrder) ? (
+              <div className="mt-3.5 p-3.5 bg-gradient-to-r from-amber-50 via-amber-100/70 to-amber-50 border-2 border-amber-400 rounded-2xl flex items-center justify-between gap-3 shadow-xs">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+                    <Banknote className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-extrabold text-[11px] tracking-wider uppercase bg-amber-600 text-white px-2 py-0.5 rounded-md">
+                        CASH ON DELIVERY (COD)
+                      </span>
+                      <span className="text-[10px] font-bold text-amber-900 bg-amber-200/80 px-1.5 py-0.5 rounded">
+                        Payment Pending
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-amber-800 font-medium mt-1 leading-tight">
+                      Collect full cash payment from customer upon delivery.
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right shrink-0 bg-white/90 px-3 py-1.5 rounded-xl border border-amber-300">
+                  <span className="block text-[9px] font-extrabold uppercase tracking-wider text-amber-800">To Collect</span>
+                  <span className="font-extrabold text-sm sm:text-base text-amber-950">
+                    ₹{Number(selectedOrder.total).toLocaleString('en-IN')}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-3.5 p-3 bg-emerald-50/90 border border-emerald-200 rounded-2xl flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                    <CreditCard className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-bold text-xs uppercase text-emerald-900">Paid Online (Razorpay)</span>
+                      <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded">Payment Received</span>
+                    </div>
+                    <p className="text-[11px] text-emerald-700">Prepaid order — Do NOT collect cash from customer</p>
+                  </div>
+                </div>
+                <span className="text-xs font-extrabold text-emerald-800 bg-white px-2 py-0.5 rounded-lg border border-emerald-200">
+                  PAID
+                </span>
+              </div>
+            )}
+
             {/* Customer info */}
-            <div className="my-4 p-4 bg-gray-50 rounded-2xl space-y-1.5 text-xs text-gray-700">
+            <div className="my-3.5 p-4 bg-gray-50 rounded-2xl space-y-1.5 text-xs text-gray-700">
               <div className="flex justify-between items-start">
                 <p className="font-bold text-sm text-gray-900">{selectedOrder.customerName}</p>
                 {selectedOrder.paymentMethod && (
-                  <span className="text-[10px] bg-emerald-50 text-emerald-800 font-bold px-2 py-0.5 rounded-full border border-emerald-200">
-                    {selectedOrder.paymentMethod}
-                  </span>
+                  isCODOrder(selectedOrder) ? (
+                    <span className="text-[11px] bg-amber-100 text-amber-900 font-extrabold px-2.5 py-1 rounded-full border border-amber-300 flex items-center gap-1">
+                      <Banknote className="w-3.5 h-3.5 text-amber-700" />
+                      <span>Cash on Delivery</span>
+                    </span>
+                  ) : (
+                    <span className="text-[11px] bg-emerald-50 text-emerald-800 font-bold px-2.5 py-1 rounded-full border border-emerald-200 flex items-center gap-1">
+                      <CreditCard className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>{selectedOrder.paymentMethod}</span>
+                    </span>
+                  )
                 )}
               </div>
               <p className="flex items-center gap-2 text-gray-600">
@@ -472,7 +582,7 @@ export default function AdminOrders({ onNavigateShipping }) {
             </div>
 
             {/* Delivery Status & DTDC Tracking Form */}
-            <div className="bg-[#FAF0F1]/60 border border-[#F5DCD0] rounded-2xl p-4 my-4 space-y-3">
+            <div className="bg-[#FAF0F1]/60 border border-[#F5DCD0] rounded-2xl p-4 my-3.5 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Truck className="w-4 h-4 text-[#701A23]" />
@@ -570,7 +680,7 @@ export default function AdminOrders({ onNavigateShipping }) {
             </div>
 
             {/* Itemized List */}
-            <div className="space-y-2 max-h-56 overflow-y-auto border-t border-b border-gray-100 py-3">
+            <div className="space-y-2 max-h-52 overflow-y-auto border-t border-b border-gray-100 py-3">
               <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Ordered Products</p>
               {selectedOrder.items?.map((item, i) => (
                 <div key={i} className="flex justify-between items-center text-xs py-1.5">
@@ -599,8 +709,8 @@ export default function AdminOrders({ onNavigateShipping }) {
               ))}
             </div>
 
-            {/* Totals */}
-            <div className="pt-3 space-y-1.5 text-xs">
+            {/* Totals & Payment Breakdown */}
+            <div className="pt-3 space-y-2 text-xs">
               <div className="flex justify-between text-gray-600">
                 <span>Subtotal:</span>
                 <span>₹{Number(selectedOrder.subtotal).toLocaleString('en-IN')}</span>
@@ -611,16 +721,64 @@ export default function AdminOrders({ onNavigateShipping }) {
                   <span>-₹{Number(selectedOrder.discount).toLocaleString('en-IN')}</span>
                 </div>
               )}
+              {selectedOrder.shipping > 0 && (
+                <div className="flex justify-between text-gray-600">
+                  <span>Shipping Fee:</span>
+                  <span>₹{Number(selectedOrder.shipping).toLocaleString('en-IN')}</span>
+                </div>
+              )}
               <div className="flex justify-between text-base font-extrabold text-gray-900 pt-2 border-t border-gray-100">
-                <span>Total Amount:</span>
+                <span>Total Order Value:</span>
                 <span className="text-[#701A23]">₹{Number(selectedOrder.total).toLocaleString('en-IN')}</span>
+              </div>
+
+              {/* Exact Payment Collection Status Card */}
+              <div className={`p-3 rounded-xl border flex items-center justify-between text-xs font-bold ${
+                isCODOrder(selectedOrder)
+                  ? 'bg-amber-50 border-amber-300 text-amber-900'
+                  : 'bg-emerald-50 border-emerald-200 text-emerald-900'
+              }`}>
+                <div className="flex items-center gap-2.5">
+                  {isCODOrder(selectedOrder) ? (
+                    <Banknote className="w-4 h-4 text-amber-700 shrink-0" />
+                  ) : (
+                    <CreditCard className="w-4 h-4 text-emerald-700 shrink-0" />
+                  )}
+                  <div>
+                    <p className="font-extrabold uppercase tracking-wide text-[11px]">
+                      {isCODOrder(selectedOrder) ? 'Mode: Cash on Delivery (COD)' : 'Mode: Paid Online'}
+                    </p>
+                    <p className="text-[10px] font-normal text-gray-600">
+                      {isCODOrder(selectedOrder)
+                        ? 'Collect this exact cash amount from customer upon delivery'
+                        : 'Prepaid via Razorpay · Full amount already received'}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="text-[9px] uppercase block text-gray-500 font-bold">
+                    {isCODOrder(selectedOrder) ? 'Collect Cash' : 'Status'}
+                  </span>
+                  <span className={`text-sm font-extrabold ${isCODOrder(selectedOrder) ? 'text-amber-900' : 'text-emerald-700'}`}>
+                    {isCODOrder(selectedOrder) ? `₹${Number(selectedOrder.total).toLocaleString('en-IN')}` : 'PAID'}
+                  </span>
+                </div>
               </div>
             </div>
 
-            <div className="mt-5 flex gap-3">
+            <div className="mt-5 flex gap-2 sm:gap-3">
+              <button
+                type="button"
+                onClick={() => generateInvoice(selectedOrder)}
+                className="flex-1 py-2.5 bg-gray-100 hover:bg-[#FAF0F1] text-gray-800 hover:text-[#701A23] font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 border border-gray-200 transition-colors cursor-pointer"
+                title="Download Official PDF Invoice"
+              >
+                <FileText className="w-4 h-4 text-[#701A23]" />
+                <span>Download Invoice</span>
+              </button>
               <button
                 onClick={() => setSelectedOrder(null)}
-                className="w-full py-2.5 bg-gray-900 hover:bg-black text-white font-bold rounded-xl text-xs cursor-pointer"
+                className="flex-1 py-2.5 bg-gray-900 hover:bg-black text-white font-bold rounded-xl text-xs cursor-pointer transition-colors"
               >
                 Close Summary
               </button>
@@ -655,7 +813,35 @@ export default function AdminOrders({ onNavigateShipping }) {
               </button>
             </div>
 
-            <form onSubmit={handleSaveTracking} className="space-y-3.5 mt-4 text-xs">
+            {/* COD Reminder Banner for Dispatch */}
+            {isCODOrder(selectedOrder) ? (
+              <div className="mt-3 p-3 bg-amber-50 border border-amber-300 rounded-xl flex items-center justify-between text-xs text-amber-900">
+                <div className="flex items-center gap-2">
+                  <Banknote className="w-4 h-4 text-amber-700 shrink-0" />
+                  <div>
+                    <span className="font-extrabold uppercase text-[11px] block">CASH ON DELIVERY SHIPMENT</span>
+                    <span className="text-[10px] text-amber-800">
+                      Mark COD on courier waybill. Collect: ₹{Number(selectedOrder.total).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                </div>
+                <span className="font-extrabold text-[10px] bg-amber-200 text-amber-900 px-2 py-0.5 rounded-md shrink-0">
+                  COD
+                </span>
+              </div>
+            ) : (
+              <div className="mt-3 p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between text-xs text-emerald-900">
+                <div className="flex items-center gap-2">
+                  <CreditCard className="w-4 h-4 text-emerald-700 shrink-0" />
+                  <span className="text-[11px] font-bold">Prepaid Online Order (No cash collection needed)</span>
+                </div>
+                <span className="font-extrabold text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md shrink-0">
+                  PREPAID
+                </span>
+              </div>
+            )}
+
+            <form onSubmit={handleSaveTracking} className="space-y-3.5 mt-3.5 text-xs">
               {/* Delivery Status */}
               <div>
                 <label className="block font-bold text-gray-700 uppercase tracking-wide mb-1">

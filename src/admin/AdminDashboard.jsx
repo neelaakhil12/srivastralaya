@@ -318,8 +318,19 @@ export default function AdminDashboard({ onNavigateTab, onOpenNewProduct, onOpen
                       <p className="font-semibold text-gray-800">{order.customerName}</p>
                       <p className="text-[11px] text-gray-400">{order.customerPhone}</p>
                     </td>
-                    <td className="py-3.5 font-bold text-[#701A23]">
-                      ₹{Number(order.total).toLocaleString('en-IN')}
+                    <td className="py-3.5">
+                      <span className="font-bold text-[#701A23] block">
+                        ₹{Number(order.total).toLocaleString('en-IN')}
+                      </span>
+                      {((order.paymentMethod || '').toLowerCase().includes('cod') || (order.paymentMethod || '').toLowerCase().includes('cash')) ? (
+                        <span className="inline-flex items-center text-[10px] font-extrabold px-1.5 py-0.2 rounded bg-amber-100 text-amber-900 border border-amber-300 whitespace-nowrap">
+                          💵 COD
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center text-[10px] font-bold px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 whitespace-nowrap">
+                          💳 Online
+                        </span>
+                      )}
                     </td>
                     <td className="py-3.5">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
