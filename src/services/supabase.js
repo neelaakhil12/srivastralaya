@@ -68,13 +68,20 @@ export async function saveStoreConfig(configObj) {
   try {
     const existing = (await getStoreConfig()) || {};
     const merged = { ...existing, ...configObj };
-    await supabase.from('categories').upsert([{
+    const { error } = await supabase.from('categories').upsert([{
       id: '__sys_settings',
       name: '__sys_settings',
-      description: JSON.stringify(merged)
+      description: JSON.stringify(merged),
+      image: '/products/generic-product.png'
     }]);
+    if (error) {
+      console.warn('Supabase store config save error:', error);
+      return false;
+    }
+    return true;
   } catch (err) {
     console.warn('Supabase store config save warning:', err);
+    return false;
   }
 }
 

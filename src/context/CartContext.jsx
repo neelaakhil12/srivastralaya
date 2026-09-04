@@ -10,36 +10,55 @@ export const syncShippingFromCloud = async () => {
   try {
     const config = await getStoreConfig();
     if (config && config.shipping) {
-      localStorage.setItem('sv_shipping_settings', JSON.stringify(config.shipping));
+      const merged = {
+        standardShippingFee: Number(config.shipping.standardShippingFee ?? 80),
+        freeShippingThreshold: Number(config.shipping.freeShippingThreshold ?? 2000),
+        enableFreeShipping: Boolean(config.shipping.enableFreeShipping ?? true),
+        enableCOD: config.shipping.enableCOD === false ? false : Boolean(config.shipping.enableCOD),
+        deliveryNote: config.shipping.deliveryNote || 'Fast Shipping Across India'
+      };
+      localStorage.setItem('sv_shipping_settings', JSON.stringify(merged));
       window.dispatchEvent(new Event('sv_shipping_updated'));
-      return config.shipping;
+      return merged;
     }
-  } catch (e) {}
+  } catch (e) {
+    console.warn('syncShippingFromCloud error:', e);
+  }
   return null;
 };
 
 export const getShippingSettings = () => {
-  syncShippingFromCloud();
   try {
     const raw = localStorage.getItem('sv_shipping_settings');
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return {
+        standardShippingFee: Number(parsed.standardShippingFee ?? 80),
+        freeShippingThreshold: Number(parsed.freeShippingThreshold ?? 2000),
+        enableFreeShipping: Boolean(parsed.enableFreeShipping ?? true),
+        enableCOD: parsed.enableCOD === false ? false : Boolean(parsed.enableCOD),
+        deliveryNote: parsed.deliveryNote || 'Fast Shipping Across India'
+      };
+    }
   } catch (e) {}
   return {
-    standardShippingFee: 99,
+    standardShippingFee: 80,
     freeShippingThreshold: 2000,
     enableFreeShipping: true,
-    enableCOD: true,
-    deliveryNote: 'Fast Shipping Across India'
+    enableCOD: false,
+    deliveryNote: '3 - 4 days delivery'
   };
 };
 
-export const saveShippingSettings = (settings) => {
+export const saveShippingSettings = async (settings) => {
   try {
     localStorage.setItem('sv_shipping_settings', JSON.stringify(settings));
     window.dispatchEvent(new Event('sv_shipping_updated'));
-    saveStoreConfig({ shipping: settings });
+    await saveStoreConfig({ shipping: settings });
+    return true;
   } catch (e) {
     console.error('Failed to save shipping settings:', e);
+    return false;
   }
 };
 
@@ -58,6 +77,22 @@ export const CartProvider = ({ children }) => {
   const [shippingConfig, setShippingConfig] = useState(getShippingSettings);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
+
+  // Sync fresh config from Supabase cloud on mount
+  useEffect(() => {
+    syncShippingFromCloud().then(cloudSettings => {
+      if (cloudSettings) setShippingConfig(cloudSettings);
+    });
+  }, []);
+
+  // When cart drawer opens, ensure fresh cloud settings are applied
+  useEffect(() => {
+    if (isCartOpen) {
+      syncShippingFromCloud().then(cloudSettings => {
+        if (cloudSettings) setShippingConfig(cloudSettings);
+      });
+    }
+  }, [isCartOpen]);
 
   useEffect(() => {
     try {

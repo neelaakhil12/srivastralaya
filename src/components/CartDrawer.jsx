@@ -39,13 +39,19 @@ export default function CartDrawer({ setActivePage }) {
   const [couponApplied, setCouponApplied] = useState(false);
   const [couponError, setCouponError] = useState('');
 
-  // Checkout flow states: 'cart' | 'form' | 'success'
   const [checkoutView, setCheckoutView] = useState('cart');
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('online'); // 'online' | 'cod'
   const [payLoading, setPayLoading] = useState(false);
   const [payError, setPayError] = useState('');
   const [successOrderId, setSuccessOrderId] = useState('');
   const [completedOrderData, setCompletedOrderData] = useState(null);
+
+  // If COD is disabled by admin in cloud settings, automatically revert selection to 'online'
+  useEffect(() => {
+    if (!enableCOD && selectedPaymentMethod === 'cod') {
+      setSelectedPaymentMethod('online');
+    }
+  }, [enableCOD, selectedPaymentMethod]);
 
   // Customer Delivery Details
   const [custName, setCustName] = useState('');

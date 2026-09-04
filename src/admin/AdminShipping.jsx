@@ -1,55 +1,89 @@
 import React, { useState, useEffect } from 'react';
-import { Truck, Check, Save, Sparkles, ShieldCheck, AlertCircle, RefreshCw, Banknote } from 'lucide-react';
-import { getShippingSettings, saveShippingSettings } from '../context/CartContext';
+import { Truck, Check, Save, Sparkles, ShieldCheck, AlertCircle, RefreshCw, Banknote, Loader2 } from 'lucide-react';
+import { getShippingSettings, saveShippingSettings, syncShippingFromCloud } from '../context/CartContext';
 
 export default function AdminShipping() {
-  const [standardFee, setStandardFee] = useState(99);
+  const [standardFee, setStandardFee] = useState(80);
   const [freeThreshold, setFreeThreshold] = useState(2000);
   const [enableFreeShipping, setEnableFreeShipping] = useState(true);
-  const [enableCOD, setEnableCOD] = useState(true);
-  const [deliveryNote, setDeliveryNote] = useState('Fast Shipping Across India');
+  const [enableCOD, setEnableCOD] = useState(false);
+  const [deliveryNote, setDeliveryNote] = useState('3 - 4 days delivery');
+  const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
   useEffect(() => {
-    const settings = getShippingSettings();
-    setStandardFee(settings.standardShippingFee ?? 99);
-    setFreeThreshold(settings.freeShippingThreshold ?? 2000);
-    setEnableFreeShipping(settings.enableFreeShipping ?? true);
-    setEnableCOD(settings.enableCOD !== false);
-    setDeliveryNote(settings.deliveryNote || 'Fast Shipping Across India');
+    // 1. Initial cached values
+    const cached = getShippingSettings();
+    setStandardFee(cached.standardShippingFee ?? 80);
+    setFreeThreshold(cached.freeShippingThreshold ?? 2000);
+    setEnableFreeShipping(cached.enableFreeShipping ?? true);
+    setEnableCOD(cached.enableCOD === true);
+    setDeliveryNote(cached.deliveryNote || '3 - 4 days delivery');
+
+    // 2. Fetch fresh live config from Supabase cloud
+    syncShippingFromCloud().then(cloudSettings => {
+      if (cloudSettings) {
+        setStandardFee(cloudSettings.standardShippingFee ?? 80);
+        setFreeThreshold(cloudSettings.freeShippingThreshold ?? 2000);
+        setEnableFreeShipping(cloudSettings.enableFreeShipping ?? true);
+        setEnableCOD(cloudSettings.enableCOD === true);
+        setDeliveryNote(cloudSettings.deliveryNote || '3 - 4 days delivery');
+      }
+    });
   }, []);
 
-  const handleSave = (e) => {
+  const handleToggleCOD = async (checked) => {
+    setEnableCOD(checked);
+    setSaving(true);
+    const newSettings = {
+      standardShippingFee: Math.max(0, Number(standardFee) || 0),
+      freeShippingThreshold: Math.max(0, Number(freeThreshold) || 0),
+      enableFreeShipping: Boolean(enableFreeShipping),
+      enableCOD: Boolean(checked),
+      deliveryNote: deliveryNote.trim() || '3 - 4 days delivery'
+    };
+    await saveShippingSettings(newSettings);
+    setSaving(false);
+    setSavedSuccess(true);
+    setTimeout(() => setSavedSuccess(false), 3500);
+  };
+
+  const handleSave = async (e) => {
     e.preventDefault();
+    setSaving(true);
     const newSettings = {
       standardShippingFee: Math.max(0, Number(standardFee) || 0),
       freeShippingThreshold: Math.max(0, Number(freeThreshold) || 0),
       enableFreeShipping: Boolean(enableFreeShipping),
       enableCOD: Boolean(enableCOD),
-      deliveryNote: deliveryNote.trim() || 'Fast Shipping Across India'
+      deliveryNote: deliveryNote.trim() || '3 - 4 days delivery'
     };
 
-    saveShippingSettings(newSettings);
+    await saveShippingSettings(newSettings);
+    setSaving(false);
     setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 3000);
+    setTimeout(() => setSavedSuccess(false), 3500);
   };
 
-  const handleResetDefaults = () => {
-    if (!window.confirm('Reset shipping & payment settings to defaults (₹99 delivery, free above ₹2000, COD enabled)?')) return;
-    setStandardFee(99);
-    setFreeThreshold(2000);
-    setEnableFreeShipping(true);
-    setEnableCOD(true);
-    setDeliveryNote('Fast Shipping Across India');
-    saveShippingSettings({
-      standardShippingFee: 99,
+  const handleResetDefaults = async () => {
+    if (!window.confirm('Reset shipping & payment settings to defaults (₹80 delivery, free above ₹2000, COD disabled)?')) return;
+    setSaving(true);
+    const defaults = {
+      standardShippingFee: 80,
       freeShippingThreshold: 2000,
       enableFreeShipping: true,
-      enableCOD: true,
-      deliveryNote: 'Fast Shipping Across India'
-    });
+      enableCOD: false,
+      deliveryNote: '3 - 4 days delivery'
+    };
+    setStandardFee(80);
+    setFreeThreshold(2000);
+    setEnableFreeShipping(true);
+    setEnableCOD(false);
+    setDeliveryNote('3 - 4 days delivery');
+    await saveShippingSettings(defaults);
+    setSaving(false);
     setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 3000);
+    setTimeout(() => setSavedSuccess(false), 3500);
   };
 
   return (
@@ -185,7 +219,8 @@ export default function AdminShipping() {
                 <input
                   type="checkbox"
                   checked={enableCOD}
-                  onChange={(e) => setEnableCOD(e.target.checked)}
+                  onChange={(e) => handleToggleCOD(e.target.checked)}
+                  disabled={saving}
                   className="sr-only peer"
                 />
                 <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
@@ -227,10 +262,11 @@ export default function AdminShipping() {
           <div className="pt-2">
             <button
               type="submit"
-              className="w-full flex items-center justify-center gap-2 bg-[#701A23] hover:bg-[#521117] text-white py-3 px-6 rounded-xl font-bold text-sm shadow-md hover:shadow-lg transition-all cursor-pointer"
+              disabled={saving}
+              className="w-full flex items-center justify-center gap-2 bg-[#701A23] hover:bg-[#521117] text-white py-3 px-6 rounded-xl font-bold text-sm shadow-md hover:shadow-lg transition-all cursor-pointer disabled:opacity-60"
             >
-              <Save className="w-4 h-4" />
-              <span>Save &amp; Apply Shipping Charges</span>
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              <span>{saving ? 'Synchronizing with Cloud...' : 'Save & Apply Shipping Charges'}</span>
             </button>
           </div>
         </form>
