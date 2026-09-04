@@ -1,3 +1,5 @@
+import { compressImage } from '../utils/compressImage';
+
 /**
  * Cloudinary image uploader
  * Uploads a file (or base64 string) to Cloudinary via our backend API proxy with fallbacks
@@ -9,16 +11,33 @@ const API_BASE_URLS = [
 ];
 
 export async function uploadToCloudinary(fileOrBase64, folder = 'sri-vastralaya') {
-  let base64Data = fileOrBase64;
+  if (!fileOrBase64) return '';
 
-  // If a File object is passed, convert to base64
-  if (fileOrBase64 instanceof File || fileOrBase64 instanceof Blob) {
-    base64Data = await new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(fileOrBase64);
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = error => reject(error);
-    });
+  // If already a hosted URL (e.g. https://res.cloudinary.com/...)
+  if (typeof fileOrBase64 === 'string' && !fileOrBase64.startsWith('data:image')) {
+    return fileOrBase64;
+  }
+
+  // Pre-compress image client-side to ensure lightweight, fast uploads (< 200KB)
+  let base64Data;
+  try {
+    base64Data = await compressImage(fileOrBase64, 1200, 1200, 0.82);
+  } catch (compErr) {
+    console.warn('Pre-compression note:', compErr);
+  }
+
+  // Fallback conversion if compression wasn't possible
+  if (!base64Data) {
+    if (fileOrBase64 instanceof File || fileOrBase64 instanceof Blob) {
+      base64Data = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(fileOrBase64);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+      });
+    } else {
+      base64Data = fileOrBase64;
+    }
   }
 
   // 1. Try serverless backend API endpoint
@@ -70,10 +89,12 @@ export async function uploadToCloudinary(fileOrBase64, folder = 'sri-vastralaya'
     console.warn('Direct upload fallback note:', directErr.message);
   }
 
-  // 3. Resilient fallback: return base64 data URL so user can still save product/category
+  // 3. Resilient fallback: return compressed base64 data URL (<200KB)
   if (base64Data && typeof base64Data === 'string' && base64Data.startsWith('data:image')) {
+    console.log('Using optimized local image format for product saving');
     return base64Data;
   }
 
   throw new Error('Failed to upload image. Please try again with a smaller image file.');
 }
+

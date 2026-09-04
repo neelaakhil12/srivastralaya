@@ -56,7 +56,7 @@ export default function AdminLayout({ adminUser, onLogout, onNavigateToStore }) 
 
       {/* Sidebar Navigation */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-72 bg-[#4A0E17] text-white flex flex-col justify-between transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] bg-[#4A0E17] text-white flex flex-col justify-between transform transition-transform duration-300 ease-in-out lg:translate-x-0 ${
           isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'
         } shadow-2xl border-r border-[#611621]`}
       >
@@ -148,13 +148,13 @@ export default function AdminLayout({ adminUser, onLogout, onNavigateToStore }) 
       </aside>
 
       {/* Main Content Area */}
-      <div className="flex-1 lg:pl-72 flex flex-col min-w-0">
+      <div className="flex-1 lg:pl-72 flex flex-col min-w-0 max-w-full overflow-x-hidden">
         {/* Top Navbar */}
-        <header className="h-16 bg-white border-b border-gray-200/80 sticky top-0 z-30 flex items-center justify-between px-4 sm:px-8">
+        <header className="h-16 bg-white border-b border-gray-200/80 sticky top-0 z-30 flex items-center justify-between px-3 sm:px-8">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setIsMobileSidebarOpen(true)}
-              className="lg:hidden p-2 text-gray-600 hover:text-gray-900 rounded-xl"
+              className="lg:hidden p-2 text-gray-600 hover:text-gray-900 rounded-xl cursor-pointer"
             >
               <Menu className="w-6 h-6" />
             </button>
@@ -170,7 +170,7 @@ export default function AdminLayout({ adminUser, onLogout, onNavigateToStore }) 
           <div className="flex items-center gap-3">
             <button
               onClick={onNavigateToStore}
-              className="hidden sm:flex items-center gap-1.5 text-xs font-bold text-[#701A23] hover:text-[#912531] bg-[#FAF0F1] px-3.5 py-1.5 rounded-lg transition-colors"
+              className="hidden sm:flex items-center gap-1.5 text-xs font-bold text-[#701A23] hover:text-[#912531] bg-[#FAF0F1] px-3.5 py-1.5 rounded-lg transition-colors cursor-pointer"
             >
               <ExternalLink className="w-3.5 h-3.5" />
               <span>Live Website</span>
@@ -179,7 +179,7 @@ export default function AdminLayout({ adminUser, onLogout, onNavigateToStore }) 
         </header>
 
         {/* Content Views */}
-        <main className="flex-1 p-4 sm:p-8 max-w-7xl w-full mx-auto">
+        <main className="flex-1 p-3 sm:p-8 max-w-7xl w-full mx-auto overflow-x-hidden min-w-0">
           {activeTab === 'dashboard' && (
             <AdminDashboard
               onNavigateTab={setActiveTab}

@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { getProducts, getCategories, addProduct, updateProduct, deleteProduct } from '../services/supabase';
 import { uploadToCloudinary } from '../services/cloudinary';
+import { compressImage } from '../utils/compressImage';
 
 const POPULAR_COLORS = [
   { name: 'Red', hex: '#E53E3E' },
@@ -116,12 +117,28 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
       let defaultSizePrices = {};
 
       if (isFrame) {
-        defaultSizes = ['A3', 'A4', 'A5', 'A6'];
+        defaultSizes = [
+          { name: 'A3', inStock: true },
+          { name: 'A4', inStock: true },
+          { name: 'A5', inStock: true },
+          { name: 'A6', inStock: true }
+        ];
         defaultSizePrices = { 'A6': 199, 'A5': 299, 'A4': 499, 'A3': 799 };
       } else if (isShirt) {
-        defaultSizes = ['M', 'L', 'XL', 'XXL'];
+        defaultSizes = [
+          { name: 'M', inStock: true },
+          { name: 'L', inStock: true },
+          { name: 'XL', inStock: true },
+          { name: 'XXL', inStock: true }
+        ];
       } else if (isTShirt || isApparel) {
-        defaultSizes = ['S', 'M', 'L', 'XL', 'XXL'];
+        defaultSizes = [
+          { name: 'S', inStock: true },
+          { name: 'M', inStock: true },
+          { name: 'L', inStock: true },
+          { name: 'XL', inStock: true },
+          { name: 'XXL', inStock: true }
+        ];
       }
 
       return {
@@ -136,8 +153,10 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
 
   const handleToggleSize = (sizeStr) => {
     setFormData(prev => {
-      const exists = prev.sizes.includes(sizeStr);
-      const updated = exists ? prev.sizes.filter(s => s !== sizeStr) : [...prev.sizes, sizeStr];
+      const exists = (prev.sizes || []).some(s => (typeof s === 'object' && s !== null ? s.name : s) === sizeStr);
+      const updated = exists
+        ? prev.sizes.filter(s => (typeof s === 'object' && s !== null ? s.name : s) !== sizeStr)
+        : [...prev.sizes, { name: sizeStr, inStock: true }];
       const updatedPrices = { ...(prev.sizePrices || {}) };
       if (exists) {
         delete updatedPrices[sizeStr];
@@ -154,11 +173,12 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
   const handleAddCustomSize = () => {
     const trimmed = customSizeInput.trim();
     if (!trimmed) return;
-    if (!formData.sizes.includes(trimmed)) {
+    const exists = (formData.sizes || []).some(s => (typeof s === 'object' && s !== null ? s.name : s) === trimmed);
+    if (!exists) {
       setFormData(prev => ({
         ...prev,
         hasSizes: true,
-        sizes: [...prev.sizes, trimmed]
+        sizes: [...prev.sizes, { name: trimmed, inStock: true }]
       }));
     }
     setCustomSizeInput('');
@@ -170,10 +190,24 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
       delete updatedPrices[sizeStr];
       return {
         ...prev,
-        sizes: prev.sizes.filter(s => s !== sizeStr),
+        sizes: prev.sizes.filter(s => (typeof s === 'object' && s !== null ? s.name : s) !== sizeStr),
         sizePrices: updatedPrices
       };
     });
+  };
+
+  const handleToggleSizeStock = (sizeStr) => {
+    setFormData(prev => ({
+      ...prev,
+      sizes: (prev.sizes || []).map(s => {
+        const sName = typeof s === 'object' && s !== null ? s.name : s;
+        if (sName === sizeStr) {
+          const currentStock = typeof s === 'object' && s !== null ? s.inStock !== false : true;
+          return { name: sName, inStock: !currentStock };
+        }
+        return typeof s === 'object' && s !== null ? s : { name: s, inStock: true };
+      })
+    }));
   };
 
   const handleToggleColor = (colorPreset) => {
@@ -181,7 +215,7 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
       const exists = (prev.colors || []).some(c => c.name.toLowerCase() === colorPreset.name.toLowerCase());
       const updated = exists
         ? prev.colors.filter(c => c.name.toLowerCase() !== colorPreset.name.toLowerCase())
-        : [...(prev.colors || []), { name: colorPreset.name, hex: colorPreset.hex, image: '' }];
+        : [...(prev.colors || []), { name: colorPreset.name, hex: colorPreset.hex, image: '', inStock: true }];
       return {
         ...prev,
         hasColors: true,
@@ -199,10 +233,19 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
       return {
         ...prev,
         hasColors: true,
-        colors: [...(prev.colors || []), { name: trimmed, hex: customColorHex, image: '' }]
+        colors: [...(prev.colors || []), { name: trimmed, hex: customColorHex, image: '', inStock: true }]
       };
     });
     setCustomColorName('');
+  };
+
+  const handleToggleColorStock = (colorName) => {
+    setFormData(prev => ({
+      ...prev,
+      colors: (prev.colors || []).map(c =>
+        c.name === colorName ? { ...c, inStock: c.inStock === false ? true : false } : c
+      )
+    }));
   };
 
   const handleRemoveColor = (colorName) => {
@@ -212,6 +255,7 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
     }));
   };
 
+
   const handleColorImageUpload = async (colorName, e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -219,7 +263,8 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
     setUploadingColorName(colorName);
     setModalError('');
     try {
-      const cloudinaryUrl = await uploadToCloudinary(file, 'sri-vastralaya/products');
+      const compressed = await compressImage(file, 1200, 1200, 0.82);
+      const cloudinaryUrl = await uploadToCloudinary(compressed || file, 'sri-vastralaya/products');
       setFormData(prev => ({
         ...prev,
         colors: (prev.colors || []).map(c => c.name === colorName ? { ...c, image: cloudinaryUrl } : c),
@@ -263,7 +308,9 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
         : '• 100% Premium Quality Fabric\n• Elegant Traditional Weave\n• Comfortable & Breathable Fit\n• Dry Clean or Gentle Hand Wash Recommended',
       inStock: true,
       hasSizes: shouldHaveSize,
-      sizes: isFrame ? ['A3', 'A4', 'A5', 'A6'] : (isApparel ? ['S', 'M', 'L', 'XL', 'XXL'] : []),
+      sizes: isFrame
+        ? [{ name: 'A3', inStock: true }, { name: 'A4', inStock: true }, { name: 'A5', inStock: true }, { name: 'A6', inStock: true }]
+        : (isApparel ? [{ name: 'S', inStock: true }, { name: 'M', inStock: true }, { name: 'L', inStock: true }, { name: 'XL', inStock: true }, { name: 'XXL', inStock: true }] : []),
       sizePrices: isFrame ? { 'A6': 199, 'A5': 299, 'A4': 499, 'A3': 799 } : {},
       hasColors: false,
       colors: []
@@ -276,25 +323,30 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
   const handleOpenEdit = (prod) => {
     let parsedSizes = [];
     if (Array.isArray(prod.sizes)) {
-      parsedSizes = [...prod.sizes];
+      parsedSizes = prod.sizes.map(s => typeof s === 'object' && s !== null ? { name: s.name, inStock: s.inStock !== false } : { name: String(s), inStock: true });
     } else if (typeof prod.sizes === 'string' && prod.sizes.trim()) {
       try {
         const p = JSON.parse(prod.sizes);
-        if (Array.isArray(p)) parsedSizes = p;
+        if (Array.isArray(p)) {
+          parsedSizes = p.map(s => typeof s === 'object' && s !== null ? { name: s.name, inStock: s.inStock !== false } : { name: String(s), inStock: true });
+        }
       } catch (e) {
-        parsedSizes = prod.sizes.split(',').map(s => s.trim()).filter(Boolean);
+        parsedSizes = prod.sizes.split(',').map(s => ({ name: s.trim(), inStock: true })).filter(s => s.name);
       }
     }
 
     let parsedColors = [];
     if (Array.isArray(prod.colors)) {
-      parsedColors = [...prod.colors];
+      parsedColors = prod.colors.map(c => typeof c === 'object' && c !== null ? { ...c, inStock: c.inStock !== false } : { name: String(c), hex: '#701A23', image: '', inStock: true });
     } else if (typeof prod.colors === 'string' && prod.colors.trim()) {
       try {
         const p = JSON.parse(prod.colors);
-        if (Array.isArray(p)) parsedColors = p;
+        if (Array.isArray(p)) {
+          parsedColors = p.map(c => typeof c === 'object' && c !== null ? { ...c, inStock: c.inStock !== false } : { name: String(c), hex: '#701A23', image: '', inStock: true });
+        }
       } catch (e) {}
     }
+
 
     let parsedSizePrices = {};
     if (prod.sizePrices && typeof prod.sizePrices === 'object') {
@@ -376,7 +428,8 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
     setUploadingImage(true);
     setModalError('');
     try {
-      const cloudinaryUrl = await uploadToCloudinary(file, 'sri-vastralaya/products');
+      const compressed = await compressImage(file, 1200, 1200, 0.82);
+      const cloudinaryUrl = await uploadToCloudinary(compressed || file, 'sri-vastralaya/products');
       setFormData(prev => ({
         ...prev,
         image: cloudinaryUrl,
@@ -396,7 +449,10 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
     setUploadingImage(true);
     setModalError('');
     try {
-      const uploadPromises = Array.from(files).map(file => uploadToCloudinary(file, 'sri-vastralaya/products'));
+      const uploadPromises = Array.from(files).map(async (file) => {
+        const compressed = await compressImage(file, 1200, 1200, 0.82);
+        return uploadToCloudinary(compressed || file, 'sri-vastralaya/products');
+      });
       const uploadedUrls = await Promise.all(uploadPromises);
       setFormData(prev => ({
         ...prev,
@@ -458,14 +514,15 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
 
     setSubmitting(true);
     try {
-      const generatedId = formData.id.trim() || `sv-${formData.category.slice(0, 3)}-${Date.now().toString().slice(-4)}`;
+      const targetId = editingProduct?.id || formData.id?.trim() || `sv-${formData.category.slice(0, 3)}-${Date.now().toString().slice(-4)}`;
       
       // Clean sizePrices so only active sizes are kept and empty values removed
       const cleanedSizePrices = {};
       if (formData.hasSizes && formData.sizes && formData.sizes.length > 0 && formData.sizePrices) {
         formData.sizes.forEach(s => {
-          if (formData.sizePrices[s] !== undefined && formData.sizePrices[s] !== '' && formData.sizePrices[s] !== null) {
-            cleanedSizePrices[s] = Number(formData.sizePrices[s]);
+          const sName = typeof s === 'object' && s !== null ? s.name : s;
+          if (formData.sizePrices[sName] !== undefined && formData.sizePrices[sName] !== '' && formData.sizePrices[sName] !== null) {
+            cleanedSizePrices[sName] = Number(formData.sizePrices[sName]);
           }
         });
       }
@@ -474,20 +531,55 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
         ? formData.specifications.split('\n').map(s => s.replace(/^[•\-*]\s*/, '').trim()).filter(Boolean)
         : (Array.isArray(formData.specifications) ? formData.specifications : []);
 
+      // Sanitize any large base64 data URLs before storing to prevent database latency spikes
+      let safeImage = formData.image;
+      if (typeof safeImage === 'string' && safeImage.startsWith('data:image') && safeImage.length > 300000) {
+        safeImage = await compressImage(safeImage, 1000, 1000, 0.75);
+      }
+
+      const rawImages = formData.images.length > 0 ? formData.images : [formData.image];
+      const safeImages = [];
+      for (const img of rawImages) {
+        if (typeof img === 'string' && img.startsWith('data:image') && img.length > 300000) {
+          safeImages.push(await compressImage(img, 1000, 1000, 0.75));
+        } else {
+          safeImages.push(img);
+        }
+      }
+
+      let safeColors = null;
+      if (formData.hasColors && formData.colors && formData.colors.length > 0) {
+        safeColors = [];
+        for (const col of formData.colors) {
+          const inStockVal = col.inStock !== false;
+          if (col.image && typeof col.image === 'string' && col.image.startsWith('data:image') && col.image.length > 300000) {
+            const compCol = await compressImage(col.image, 1000, 1000, 0.75);
+            safeColors.push({ ...col, inStock: inStockVal, image: compCol });
+          } else {
+            safeColors.push({ ...col, inStock: inStockVal });
+          }
+        }
+      }
+
+      const normalizedSizes = formData.hasSizes && formData.sizes && formData.sizes.length > 0
+        ? formData.sizes.map(s => typeof s === 'object' && s !== null ? { name: s.name, inStock: s.inStock !== false } : { name: String(s), inStock: true })
+        : null;
+
       const payload = {
         ...formData,
-        id: generatedId,
+        id: targetId,
+        image: safeImage,
         price: calculatedPrice,
         oldPrice: formData.oldPrice ? Number(formData.oldPrice) : null,
-        sizes: formData.hasSizes && formData.sizes.length > 0 ? formData.sizes : null,
+        sizes: normalizedSizes,
         sizePrices: Object.keys(cleanedSizePrices).length > 0 ? cleanedSizePrices : null,
-        colors: formData.hasColors && formData.colors && formData.colors.length > 0 ? formData.colors : null,
+        colors: safeColors,
         specifications: specLines.length > 0 ? specLines : null,
-        images: formData.images.length > 0 ? formData.images : [formData.image]
+        images: safeImages
       };
 
       if (editingProduct) {
-        await updateProduct(editingProduct.id, payload);
+        await updateProduct(targetId, payload);
       } else {
         await addProduct(payload);
       }
@@ -500,6 +592,8 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
       setSubmitting(false);
     }
   };
+
+
 
   const handleDelete = async (id) => {
     try {
@@ -526,11 +620,11 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
   return (
     <div className="space-y-6 animate-fadeIn">
       {/* Header & Controls */}
-      <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="bg-white p-4 sm:p-6 rounded-2xl border border-gray-100 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
           <div>
-            <h2 className="font-serif text-xl font-bold text-gray-900 flex items-center gap-2">
-              <Package className="w-5 h-5 text-[#701A23]" />
+            <h2 className="font-serif text-lg sm:text-xl font-bold text-gray-900 flex items-center gap-2">
+              <Package className="w-5 h-5 text-[#701A23] shrink-0" />
               <span>Products Management</span>
             </h2>
             <p className="text-xs text-gray-500 mt-0.5">
@@ -540,7 +634,7 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
 
           <button
             onClick={handleOpenCreate}
-            className="flex items-center gap-2 px-4 py-2.5 bg-[#701A23] hover:bg-[#521117] text-white rounded-xl text-xs font-bold shadow-md transition-all cursor-pointer whitespace-nowrap"
+            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-[#701A23] hover:bg-[#521117] text-white rounded-xl text-xs font-bold shadow-md transition-all cursor-pointer whitespace-nowrap"
           >
             <Plus className="w-4 h-4 text-[#D4AF37]" />
             <span>Add New Product</span>
@@ -548,9 +642,9 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
         </div>
 
         {/* Filters bar */}
-        <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-gray-100">
-          <div className="relative flex-1 min-w-[200px]">
-            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 sm:gap-3 pt-3 border-t border-gray-100">
+          <div className="relative w-full sm:flex-1 min-w-0">
+            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
               placeholder="Search by product name, subcategory or ID..."
@@ -560,11 +654,11 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
             />
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <select
               value={selectedCategoryFilter}
               onChange={(e) => setSelectedCategoryFilter(e.target.value)}
-              className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#701A23]"
+              className="flex-1 sm:flex-initial px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#701A23]"
             >
               <option value="all">All Categories</option>
               {categories.map(c => (
@@ -575,11 +669,11 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
             <select
               value={stockFilter}
               onChange={(e) => setStockFilter(e.target.value)}
-              className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#701A23]"
+              className="flex-1 sm:flex-initial px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#701A23]"
             >
-              <option value="all">All Stock Status</option>
-              <option value="inStock">In Stock Only</option>
-              <option value="outOfStock">Out of Stock Only</option>
+              <option value="all">All Stock</option>
+              <option value="inStock">In Stock</option>
+              <option value="outOfStock">Out of Stock</option>
             </select>
           </div>
         </div>
@@ -808,30 +902,30 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
 
       {/* Add / Edit Product Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5">
-          <div className="bg-white rounded-3xl max-w-2xl w-full shadow-2xl relative animate-fadeIn border border-gray-100 flex flex-col max-h-[92vh] overflow-hidden my-auto">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-xs flex items-center justify-center p-2.5 sm:p-5">
+          <div className="bg-white rounded-2xl sm:rounded-3xl max-w-2xl w-full shadow-2xl relative animate-fadeIn border border-gray-100 flex flex-col max-h-[94vh] sm:max-h-[92vh] overflow-hidden my-auto min-w-0">
             {/* Pinned Modal Header */}
-            <div className="flex items-center justify-between px-6 py-4 sm:px-8 sm:py-5 border-b border-gray-100 bg-white shrink-0">
-              <div>
-                <h3 className="font-serif font-bold text-lg text-gray-900">
+            <div className="flex items-center justify-between px-4 py-3 sm:px-8 sm:py-5 border-b border-gray-100 bg-white shrink-0">
+              <div className="min-w-0 flex-1 pr-2">
+                <h3 className="font-serif font-bold text-base sm:text-lg text-gray-900 truncate">
                   {editingProduct ? 'Edit Product Details' : 'Add New Product'}
                 </h3>
-                <p className="text-xs text-gray-500">
+                <p className="text-[11px] sm:text-xs text-gray-500 truncate">
                   Media will be hosted on Cloudinary & saved to Supabase
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-colors cursor-pointer"
+                className="p-1.5 sm:p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-colors cursor-pointer shrink-0"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Form with Scrollable Content */}
-            <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
-              <div className="flex-1 overflow-y-auto px-6 py-4 sm:px-8 sm:py-5 space-y-4 text-xs">
+            <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden min-w-0">
+              <div className="flex-1 overflow-y-auto overflow-x-hidden px-3.5 py-4 sm:px-8 sm:py-5 space-y-4 text-xs">
                 {modalError && (
                   <div className="bg-red-50 border border-red-200 p-3 rounded-xl text-red-700 text-xs flex items-center gap-2">
                     <AlertCircle className="w-4 h-4 shrink-0" />
@@ -1070,7 +1164,7 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
                         <span className="block text-[11px] font-bold text-gray-700 uppercase">
                           + Add Custom Color:
                         </span>
-                        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                           <input
                             type="text"
                             value={customColorName}
@@ -1081,25 +1175,27 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
                                 handleAddCustomColor();
                               }
                             }}
-                            placeholder="Color name (e.g. Mint Green, Coral Pink, Rust Orange)"
-                            className="flex-1 px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:bg-white focus:ring-2 focus:ring-[#701A23] focus:outline-none"
+                            placeholder="Color name (e.g. Mint Green, Coral Pink)"
+                            className="flex-1 min-w-0 px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:bg-white focus:ring-2 focus:ring-[#701A23] focus:outline-none"
                           />
-                          <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 px-2.5 py-1.5 rounded-xl">
-                            <span className="text-[11px] font-bold text-gray-600">Color:</span>
-                            <input
-                              type="color"
-                              value={customColorHex}
-                              onChange={(e) => setCustomColorHex(e.target.value)}
-                              className="w-6 h-6 rounded border-0 cursor-pointer p-0 bg-transparent"
-                            />
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 sm:flex-initial flex items-center justify-between sm:justify-start gap-1.5 bg-gray-50 border border-gray-200 px-2.5 py-1.5 rounded-xl">
+                              <span className="text-[11px] font-bold text-gray-600">Color:</span>
+                              <input
+                                type="color"
+                                value={customColorHex}
+                                onChange={(e) => setCustomColorHex(e.target.value)}
+                                className="w-6 h-6 rounded border-0 cursor-pointer p-0 bg-transparent"
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={handleAddCustomColor}
+                              className="flex-1 sm:flex-initial px-4 py-2 bg-[#701A23] hover:bg-[#521117] text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer whitespace-nowrap shrink-0"
+                            >
+                              + Add Color
+                            </button>
                           </div>
-                          <button
-                            type="button"
-                            onClick={handleAddCustomColor}
-                            className="px-4 py-2 bg-[#701A23] hover:bg-[#521117] text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer whitespace-nowrap"
-                          >
-                            + Add Color
-                          </button>
                         </div>
                       </div>
 
@@ -1124,19 +1220,35 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
 
                                 {/* Color name & image */}
                                 <div className="flex-1 min-w-0">
-                                  <div className="flex items-center justify-between">
+                                  <div className="flex items-center justify-between gap-1">
                                     <span className="font-bold text-xs text-gray-900 truncate">
                                       {colorItem.name}
                                     </span>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleRemoveColor(colorItem.name)}
-                                      className="text-gray-400 hover:text-red-600 p-0.5 cursor-pointer"
-                                      title="Remove color"
-                                    >
-                                      <X className="w-3.5 h-3.5" />
-                                    </button>
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleToggleColorStock(colorItem.name)}
+                                        className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold cursor-pointer border transition-colors flex items-center gap-1 ${
+                                          colorItem.inStock !== false
+                                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                                            : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'
+                                        }`}
+                                        title="Click to toggle In Stock / Out of Stock for this color"
+                                      >
+                                        <span className={`w-1.5 h-1.5 rounded-full ${colorItem.inStock !== false ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                                        <span>{colorItem.inStock !== false ? 'In Stock' : 'Out of Stock'}</span>
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleRemoveColor(colorItem.name)}
+                                        className="text-gray-400 hover:text-red-600 p-0.5 cursor-pointer"
+                                        title="Remove color"
+                                      >
+                                        <X className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
                                   </div>
+
 
                                   {/* Image status / upload button */}
                                   <div className="mt-1.5 flex items-center gap-2">
@@ -1238,7 +1350,7 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
                             {/* 🖼️ Photo Frame Presets (Shown ONLY when Photo Frames category is selected) */}
                             {showFrames && (
                               <div className="p-3.5 bg-amber-50/70 rounded-xl border border-amber-200/80 shadow-xs animate-fadeIn">
-                                <div className="flex items-center justify-between mb-2">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 mb-2">
                                   <span className="flex items-center gap-1.5 text-[11px] font-bold text-[#701A23] uppercase">
                                     🖼️ Photo Frame Sizes &amp; Dimensions:
                                   </span>
@@ -1246,20 +1358,23 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
                                     type="button"
                                     onClick={() => {
                                       const frameDefaults = ['A3', 'A4', 'A5', 'A6'];
-                                      setFormData(prev => ({
-                                        ...prev,
-                                        hasSizes: true,
-                                        sizes: Array.from(new Set([...prev.sizes, ...frameDefaults]))
-                                      }));
+                                      setFormData(prev => {
+                                        const existingNames = new Set((prev.sizes || []).map(s => typeof s === 'object' && s !== null ? s.name : s));
+                                        const newSizes = [...prev.sizes];
+                                        frameDefaults.forEach(fd => {
+                                          if (!existingNames.has(fd)) newSizes.push({ name: fd, inStock: true });
+                                        });
+                                        return { ...prev, hasSizes: true, sizes: newSizes };
+                                      });
                                     }}
-                                    className="text-[10px] font-bold text-[#701A23] bg-white px-2 py-0.5 rounded-md border border-amber-300 hover:bg-amber-100 cursor-pointer transition-colors"
+                                    className="self-start sm:self-auto text-[10px] font-bold text-[#701A23] bg-white px-2 py-0.5 rounded-md border border-amber-300 hover:bg-amber-100 cursor-pointer transition-colors shrink-0"
                                   >
                                     + Add A3, A4, A5, A6 All
                                   </button>
                                 </div>
                                 <div className="flex flex-wrap gap-1.5">
                                   {['A3', 'A4', 'A5', 'A6', '4x6 in', '5x7 in', '6x8 in', '8x10 in', '8x12 in', '10x12 in', '12x18 in', 'Mini Desk Frame'].map((preset) => {
-                                    const isSelected = formData.sizes.includes(preset);
+                                    const isSelected = (formData.sizes || []).some(s => (typeof s === 'object' && s !== null ? s.name : s) === preset);
                                     return (
                                       <button
                                         type="button"
@@ -1282,7 +1397,7 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
                             {/* 👕 Standard Apparel / T-Shirt / Shirt Sizes (Shown when NOT a photo frame) */}
                             {showApparel && (
                               <div className="p-3.5 bg-blue-50/40 rounded-xl border border-blue-200/60 shadow-xs animate-fadeIn">
-                                <div className="flex items-center justify-between mb-2">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 mb-2">
                                   <span className="block text-[11px] font-bold text-gray-800 uppercase">
                                     👕 Standard Sizes (S, M, L, XL, XXL, 3XL):
                                   </span>
@@ -1290,20 +1405,23 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
                                     type="button"
                                     onClick={() => {
                                       const apparelDefaults = ['S', 'M', 'L', 'XL', 'XXL', '3XL'];
-                                      setFormData(prev => ({
-                                        ...prev,
-                                        hasSizes: true,
-                                        sizes: Array.from(new Set([...prev.sizes, ...apparelDefaults]))
-                                      }));
+                                      setFormData(prev => {
+                                        const existingNames = new Set((prev.sizes || []).map(s => typeof s === 'object' && s !== null ? s.name : s));
+                                        const newSizes = [...prev.sizes];
+                                        apparelDefaults.forEach(ad => {
+                                          if (!existingNames.has(ad)) newSizes.push({ name: ad, inStock: true });
+                                        });
+                                        return { ...prev, hasSizes: true, sizes: newSizes };
+                                      });
                                     }}
-                                    className="text-[10px] font-bold text-[#701A23] bg-white border border-gray-300 hover:bg-gray-100 px-2 py-0.5 rounded-md cursor-pointer transition-colors"
+                                    className="self-start sm:self-auto text-[10px] font-bold text-[#701A23] bg-white border border-gray-300 hover:bg-gray-100 px-2 py-0.5 rounded-md cursor-pointer transition-colors shrink-0"
                                   >
                                     + Add S to 3XL All
                                   </button>
                                 </div>
                                 <div className="flex flex-wrap gap-1.5">
                                   {['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL', 'Free Size'].map((preset) => {
-                                    const isSelected = formData.sizes.includes(preset);
+                                    const isSelected = (formData.sizes || []).some(s => (typeof s === 'object' && s !== null ? s.name : s) === preset);
                                     return (
                                       <button
                                         type="button"
@@ -1326,7 +1444,7 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
                             {/* 👔 Numbered Shirt Sizes (Shown for Shirts) */}
                             {showNumbered && (
                               <div className="p-3.5 bg-gray-50 rounded-xl border border-gray-200 shadow-xs animate-fadeIn">
-                                <div className="flex items-center justify-between mb-2">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 mb-2">
                                   <span className="block text-[11px] font-bold text-gray-800 uppercase">
                                     👔 Numbered Sizes (Formal Shirts 38-44, Pants):
                                   </span>
@@ -1334,20 +1452,23 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
                                     type="button"
                                     onClick={() => {
                                       const numDefaults = ['38', '40', '42', '44'];
-                                      setFormData(prev => ({
-                                        ...prev,
-                                        hasSizes: true,
-                                        sizes: Array.from(new Set([...prev.sizes, ...numDefaults]))
-                                      }));
+                                      setFormData(prev => {
+                                        const existingNames = new Set((prev.sizes || []).map(s => typeof s === 'object' && s !== null ? s.name : s));
+                                        const newSizes = [...prev.sizes];
+                                        numDefaults.forEach(nd => {
+                                          if (!existingNames.has(nd)) newSizes.push({ name: nd, inStock: true });
+                                        });
+                                        return { ...prev, hasSizes: true, sizes: newSizes };
+                                      });
                                     }}
-                                    className="text-[10px] font-bold text-[#701A23] bg-white border border-gray-300 hover:bg-gray-100 px-2 py-0.5 rounded-md cursor-pointer transition-colors"
+                                    className="self-start sm:self-auto text-[10px] font-bold text-[#701A23] bg-white border border-gray-300 hover:bg-gray-100 px-2 py-0.5 rounded-md cursor-pointer transition-colors shrink-0"
                                   >
                                     + Add 38, 40, 42, 44 All
                                   </button>
                                 </div>
                                 <div className="flex flex-wrap gap-1.5">
                                   {['28', '30', '32', '34', '36', '38', '40', '42', '44', '2.4', '2.6', '2.8'].map((numSize) => {
-                                    const isSelected = formData.sizes.includes(numSize);
+                                    const isSelected = (formData.sizes || []).some(s => (typeof s === 'object' && s !== null ? s.name : s) === numSize);
                                     return (
                                       <button
                                         type="button"
@@ -1386,88 +1507,127 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
                                 handleAddCustomSize();
                               }
                             }}
-                            placeholder="Type any custom size (e.g. A3, A4, 12x18 in, 8x10 in, Custom Size)"
-                            className="flex-1 px-3.5 py-2 bg-white border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-[#701A23] focus:outline-none"
+                            placeholder="e.g. A3, 12x18 in, 38, Custom"
+                            className="flex-1 min-w-0 px-3.5 py-2 bg-white border border-gray-300 rounded-xl text-xs focus:ring-2 focus:ring-[#701A23] focus:outline-none"
                           />
                           <button
                             type="button"
                             onClick={handleAddCustomSize}
-                            className="px-4 py-2 bg-[#701A23] hover:bg-[#521117] text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer whitespace-nowrap"
+                            className="px-4 py-2 bg-[#701A23] hover:bg-[#521117] text-white text-xs font-bold rounded-xl shadow-xs cursor-pointer whitespace-nowrap shrink-0"
                           >
                             + Add Size
                           </button>
                         </div>
                       </div>
 
-                      {/* Active Selected Size Tags */}
+                      {/* Active Selected Size Tags with Stock Status */}
                       {formData.sizes.length > 0 && (
                         <div className="pt-2">
                           <span className="block text-[11px] font-bold text-gray-700 uppercase mb-1.5">
-                            Active Sizes / Dimensions for this Product:
+                            Active Sizes / Dimensions &amp; Stock Status:
                           </span>
                           <div className="flex flex-wrap gap-1.5">
-                            {formData.sizes.map((s, idx) => (
-                              <span
-                                key={idx}
-                                className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 border border-amber-300 text-amber-900 rounded-lg text-xs font-bold shadow-xs"
-                              >
-                                <span>{s}</span>
-                                <button
-                                  type="button"
-                                  onClick={() => handleRemoveSize(s)}
-                                  className="text-amber-700 hover:text-red-600 cursor-pointer p-0.5"
-                                  title="Remove size"
+                            {formData.sizes.map((sObj, idx) => {
+                              const sName = typeof sObj === 'object' && sObj !== null ? sObj.name : sObj;
+                              const sInStock = typeof sObj === 'object' && sObj !== null ? sObj.inStock !== false : true;
+                              return (
+                                <span
+                                  key={idx}
+                                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold shadow-xs border transition-colors max-w-full ${
+                                    sInStock
+                                      ? 'bg-amber-50 border-amber-300 text-amber-900'
+                                      : 'bg-rose-50 border-rose-300 text-rose-800'
+                                  }`}
                                 >
-                                  <X className="w-3.5 h-3.5" />
-                                </button>
-                              </span>
-                            ))}
+                                  <span className="truncate max-w-[100px]">{sName}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleToggleSizeStock(sName)}
+                                    className={`px-1.5 py-0.5 rounded text-[9px] font-extrabold cursor-pointer border transition-colors shrink-0 ${
+                                      sInStock
+                                        ? 'bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-200'
+                                        : 'bg-rose-100 text-rose-800 border-rose-300 hover:bg-rose-200'
+                                    }`}
+                                    title="Click to toggle In Stock / Out of Stock for this size"
+                                  >
+                                    {sInStock ? '● In Stock' : '✕ Out of Stock'}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveSize(sName)}
+                                    className="text-gray-500 hover:text-red-600 cursor-pointer p-0.5 ml-0.5 shrink-0"
+                                    title="Remove size"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                </span>
+                              );
+                            })}
                           </div>
                         </div>
                       )}
 
-                      {/* Size-Based Pricing Table / Inputs */}
+                      {/* Size-Based Pricing Table / Inputs with Stock Badges */}
                       {formData.sizes.length > 0 && (
                         <div className="p-3.5 bg-emerald-50/70 border border-emerald-200 rounded-xl space-y-2.5 animate-fadeIn">
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
                             <span className="text-xs font-bold text-emerald-950 uppercase flex items-center gap-1.5">
-                              💰 Set Selling Price for each Size (₹):
+                              💰 Set Selling Price &amp; Stock for each Size (₹):
                             </span>
                             <span className="text-[10px] text-emerald-700 font-semibold">
-                              Customers will see & pay the specific price for their chosen size
+                              Customers can select in-stock sizes with dynamic prices
                             </span>
                           </div>
-                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-                            {formData.sizes.map((s) => (
-                              <div key={s} className="bg-white p-2 rounded-lg border border-emerald-200 shadow-2xs">
-                                <label className="block text-[11px] font-bold text-gray-800 mb-1 truncate">
-                                  {s} Price:
-                                </label>
-                                <div className="relative">
-                                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">₹</span>
-                                  <input
-                                    type="number"
-                                    value={formData.sizePrices?.[s] ?? ''}
-                                    onChange={(e) => {
-                                      const val = e.target.value;
-                                      setFormData(prev => ({
-                                        ...prev,
-                                        sizePrices: {
-                                          ...(prev.sizePrices || {}),
-                                          [s]: val === '' ? '' : Number(val)
-                                        }
-                                      }));
-                                    }}
-                                    placeholder="e.g. 899"
-                                    className="w-full pl-6 pr-2 py-1.5 bg-gray-50 border border-gray-200 rounded-md text-xs font-bold text-gray-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                                  />
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                            {formData.sizes.map((sObj) => {
+                              const s = typeof sObj === 'object' && sObj !== null ? sObj.name : sObj;
+                              const sInStock = typeof sObj === 'object' && sObj !== null ? sObj.inStock !== false : true;
+                              return (
+                                <div key={s} className={`bg-white p-2.5 rounded-xl border shadow-2xs space-y-1.5 transition-all ${sInStock ? 'border-emerald-200' : 'border-rose-200 bg-rose-50/20'}`}>
+                                  <div className="flex items-center justify-between gap-1">
+                                    <label className="block text-[11px] font-bold text-gray-800 truncate">
+                                      {s} Price:
+                                    </label>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleToggleSizeStock(s)}
+                                      className={`px-1.5 py-0.5 rounded text-[9px] font-extrabold cursor-pointer border transition-colors ${
+                                        sInStock
+                                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                                          : 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100'
+                                      }`}
+                                      title="Click to toggle In Stock / Out of Stock for this size"
+                                    >
+                                      {sInStock ? '● In Stock' : '✕ Out of Stock'}
+                                    </button>
+                                  </div>
+                                  <div className="relative">
+                                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">₹</span>
+                                    <input
+                                      type="number"
+                                      value={formData.sizePrices?.[s] ?? ''}
+                                      onChange={(e) => {
+                                        const val = e.target.value;
+                                        setFormData(prev => ({
+                                          ...prev,
+                                          sizePrices: {
+                                            ...(prev.sizePrices || {}),
+                                            [s]: val === '' ? '' : Number(val)
+                                          }
+                                        }));
+                                      }}
+                                      placeholder="e.g. 899"
+                                      className="w-full pl-6 pr-2 py-1.5 bg-gray-50 border border-gray-200 rounded-md text-xs font-bold text-gray-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                                    />
+                                  </div>
                                 </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </div>
                       )}
                     </div>
+
                   )}
                 </div>
 
@@ -1557,26 +1717,26 @@ export default function AdminProducts({ isAddingNew, onCloseNewModal }) {
               </div>
 
               {/* Pinned Modal Footer */}
-              <div className="px-6 py-4 sm:px-8 border-t border-gray-100 bg-gray-50/80 flex gap-3 shrink-0">
+              <div className="px-4 py-3 sm:px-8 sm:py-4 border-t border-gray-100 bg-gray-50/90 flex gap-2.5 sm:gap-3 shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="flex-1 py-2.5 border border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-white transition-all cursor-pointer text-xs sm:text-sm"
+                  className="flex-1 py-2.5 sm:py-3 border border-gray-200 text-gray-700 font-bold rounded-xl hover:bg-white transition-all cursor-pointer text-xs sm:text-sm"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting || uploadingImage}
-                  className="flex-1 py-2.5 bg-[#701A23] hover:bg-[#521117] text-white font-bold rounded-xl flex items-center justify-center gap-2 disabled:opacity-60 shadow-md transition-all cursor-pointer text-xs sm:text-sm"
+                  className="flex-1 py-2.5 sm:py-3 bg-[#701A23] hover:bg-[#521117] text-white font-bold rounded-xl flex items-center justify-center gap-2 disabled:opacity-60 shadow-md transition-all cursor-pointer text-xs sm:text-sm"
                 >
                   {submitting ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Saving Product...</span>
+                      <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                      <span className="truncate">Saving Product...</span>
                     </>
                   ) : (
-                    <span>{editingProduct ? 'Update Product' : 'Create Product'}</span>
+                    <span className="truncate">{editingProduct ? 'Update Product' : 'Create Product'}</span>
                   )}
                 </button>
               </div>

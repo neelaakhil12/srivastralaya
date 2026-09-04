@@ -22,14 +22,17 @@ export default function ProductQuickViewModal() {
       setQuantity(1);
       setSelectedImage(0);
       if (quickViewProduct.sizes && Array.isArray(quickViewProduct.sizes) && quickViewProduct.sizes.length > 0) {
-        setSelectedSize(quickViewProduct.sizes[0]);
+        const inStockSize = quickViewProduct.sizes.find(s => (typeof s === 'object' && s !== null ? s.inStock !== false : true)) || quickViewProduct.sizes[0];
+        const sName = typeof inStockSize === 'object' && inStockSize !== null ? inStockSize.name : inStockSize;
+        setSelectedSize(sName);
       } else {
         setSelectedSize(null);
       }
       if (quickViewProduct.colors && Array.isArray(quickViewProduct.colors) && quickViewProduct.colors.length > 0) {
-        const firstCol = quickViewProduct.colors[0];
-        setSelectedColor(firstCol.name);
-        setColorImage(firstCol.image || null);
+        const inStockCol = quickViewProduct.colors.find(c => (typeof c === 'object' && c !== null ? c.inStock !== false : true)) || quickViewProduct.colors[0];
+        const cName = typeof inStockCol === 'object' && inStockCol !== null ? inStockCol.name : inStockCol;
+        setSelectedColor(cName);
+        setColorImage(inStockCol.image || null);
       } else {
         setSelectedColor(null);
         setColorImage(null);
@@ -49,14 +52,30 @@ export default function ProductQuickViewModal() {
     ? Number(quickViewProduct.sizePrices[selectedSize])
     : Number(quickViewProduct.price);
 
+  // Stock calculations for selected color & size variants
+  const selectedColorObj = quickViewProduct.colors?.find(c => (typeof c === 'object' && c !== null ? c.name : c) === selectedColor);
+  const isColorOutOfStock = selectedColorObj ? selectedColorObj.inStock === false : false;
+
+  const selectedSizeObj = quickViewProduct.sizes?.find(s => (typeof s === 'object' && s !== null ? s.name : s) === selectedSize);
+  const isSizeOutOfStock = selectedSizeObj ? selectedSizeObj.inStock === false : false;
+
+  const isTotalOutOfStock = quickViewProduct.inStock === false || isColorOutOfStock || isSizeOutOfStock;
+  const outOfStockLabel = quickViewProduct.inStock === false
+    ? 'Out of Stock'
+    : (isColorOutOfStock
+        ? `${selectedColor} - Out of Stock`
+        : (isSizeOutOfStock ? `Size ${selectedSize} - Out of Stock` : 'Out of Stock'));
+
   const handleSelectColor = (col) => {
-    setSelectedColor(col.name);
-    if (col.image) {
+    const colName = typeof col === 'object' && col !== null ? col.name : col;
+    setSelectedColor(colName);
+    if (col && typeof col === 'object' && col.image) {
       setColorImage(col.image);
     }
   };
 
   const handleAddToCart = () => {
+    if (isTotalOutOfStock) return;
     if (!isLoggedIn) {
       openAuthModal();
       return;
@@ -72,6 +91,7 @@ export default function ProductQuickViewModal() {
   };
 
   const handleBuyNow = () => {
+    if (isTotalOutOfStock) return;
     if (!isLoggedIn) {
       openAuthModal();
       return;
@@ -86,6 +106,7 @@ export default function ProductQuickViewModal() {
     closeQuickView();
     if (setIsCartOpen) setIsCartOpen(true);
   };
+
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
@@ -236,25 +257,40 @@ export default function ProductQuickViewModal() {
                   <label className="block text-xs font-bold text-gray-800 uppercase">
                     Select Color: {selectedColor && <span className="text-[#701A23] font-bold">({selectedColor})</span>}
                   </label>
+                  {isColorOutOfStock && (
+                    <span className="text-[11px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200">
+                      Color Out of Stock
+                    </span>
+                  )}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   {quickViewProduct.colors.map((color) => {
-                    const isSelected = selectedColor === color.name;
+                    const colName = typeof color === 'object' && color !== null ? color.name : color;
+                    const colHex = typeof color === 'object' && color !== null ? color.hex : '#000';
+                    const colInStock = typeof color === 'object' && color !== null ? color.inStock !== false : true;
+                    const isSelected = selectedColor === colName;
                     return (
                       <button
-                        key={color.name}
+                        key={colName}
                         onClick={() => handleSelectColor(color)}
                         className={`min-h-9 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer flex items-center gap-2 ${
                           isSelected
                             ? 'bg-[#701A23] text-white border-[#701A23] shadow-sm ring-2 ring-[#701A23]/20'
-                            : 'bg-white text-gray-800 border-gray-200 hover:border-[#701A23]'
+                            : colInStock
+                              ? 'bg-white text-gray-800 border-gray-200 hover:border-[#701A23]'
+                              : 'bg-gray-50 text-gray-400 border-dashed border-gray-300 hover:border-red-300'
                         }`}
                       >
                         <span
                           className="w-3.5 h-3.5 rounded-full border border-gray-300 shrink-0 shadow-xs"
-                          style={{ backgroundColor: color.hex || '#000' }}
+                          style={{ backgroundColor: colHex || '#000' }}
                         />
-                        <span>{color.name}</span>
+                        <span className={!colInStock ? 'line-through opacity-75' : ''}>{colName}</span>
+                        {!colInStock && (
+                          <span className="text-[9px] font-extrabold text-rose-500 bg-rose-50 px-1.5 py-0.5 rounded ml-0.5">
+                            Out of Stock
+                          </span>
+                        )}
                       </button>
                     );
                   })}
@@ -267,30 +303,45 @@ export default function ProductQuickViewModal() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <label className="block text-xs font-bold text-gray-800 uppercase">Select Size / Dimension:</label>
-                  {selectedSize && quickViewProduct.sizePrices?.[selectedSize] && (
-                    <span className="text-[11px] font-bold text-[#701A23]">
-                      Selected Size: ₹{Number(quickViewProduct.sizePrices[selectedSize]).toLocaleString('en-IN')}
+                  {isSizeOutOfStock ? (
+                    <span className="text-[11px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200">
+                      Size Out of Stock
                     </span>
+                  ) : (
+                    selectedSize && quickViewProduct.sizePrices?.[selectedSize] && (
+                      <span className="text-[11px] font-bold text-[#701A23]">
+                        Selected Size: ₹{Number(quickViewProduct.sizePrices[selectedSize]).toLocaleString('en-IN')}
+                      </span>
+                    )
                   )}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   {quickViewProduct.sizes.map((size) => {
-                    const customPrice = quickViewProduct.sizePrices?.[size];
-                    const isSelected = selectedSize === size;
+                    const sizeName = typeof size === 'object' && size !== null ? size.name : size;
+                    const sizeInStock = typeof size === 'object' && size !== null ? size.inStock !== false : true;
+                    const customPrice = quickViewProduct.sizePrices?.[sizeName];
+                    const isSelected = selectedSize === sizeName;
                     return (
                       <button
-                        key={size}
-                        onClick={() => setSelectedSize(size)}
+                        key={sizeName}
+                        onClick={() => setSelectedSize(sizeName)}
                         className={`min-h-9 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer flex items-center gap-1.5 ${
                           isSelected
                             ? 'bg-[#701A23] text-white border-[#701A23] shadow-sm'
-                            : 'bg-white text-gray-800 border-gray-200 hover:border-[#701A23]'
+                            : sizeInStock
+                              ? 'bg-white text-gray-800 border-gray-200 hover:border-[#701A23]'
+                              : 'bg-gray-50 text-gray-400 border-dashed border-gray-300 hover:border-red-300'
                         }`}
                       >
-                        <span>{size}</span>
+                        <span className={!sizeInStock ? 'line-through opacity-75' : ''}>{sizeName}</span>
                         {customPrice && (
                           <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded ${isSelected ? 'bg-white/20 text-white' : 'bg-emerald-50 text-emerald-700'}`}>
                             ₹{Number(customPrice).toLocaleString('en-IN')}
+                          </span>
+                        )}
+                        {!sizeInStock && (
+                          <span className="text-[9px] font-extrabold text-rose-500 bg-rose-50 px-1.5 py-0.5 rounded ml-0.5">
+                            Out of Stock
                           </span>
                         )}
                       </button>
@@ -305,15 +356,17 @@ export default function ProductQuickViewModal() {
               <label className="text-xs font-bold text-gray-800 uppercase">Quantity:</label>
               <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden">
                 <button
+                  disabled={isTotalOutOfStock}
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-sm"
+                  className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   -
                 </button>
                 <span className="px-4 py-1.5 font-semibold text-sm text-gray-800">{quantity}</span>
                 <button
+                  disabled={isTotalOutOfStock}
                   onClick={() => setQuantity(quantity + 1)}
-                  className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-sm"
+                  className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   +
                 </button>
@@ -324,7 +377,7 @@ export default function ProductQuickViewModal() {
           {/* Action Buttons */}
           <div className="space-y-2.5 pt-6 mt-4 border-t border-gray-100">
             <div className="flex items-center gap-3">
-              {quickViewProduct.inStock !== false ? (
+              {!isTotalOutOfStock ? (
                 <button
                   onClick={handleAddToCart}
                   className="flex-1 bg-[#701A23] hover:bg-[#521117] text-white py-3 px-4 rounded-xl text-sm font-bold flex items-center justify-center gap-2 shadow-md transition-colors cursor-pointer"
@@ -338,7 +391,7 @@ export default function ProductQuickViewModal() {
                   className="flex-1 bg-red-600 text-white py-3 px-4 rounded-xl text-sm font-bold flex items-center justify-center gap-2 shadow-md opacity-90 cursor-not-allowed"
                 >
                   <X className="w-4 h-4" />
-                  <span>Out of Stock</span>
+                  <span>{outOfStockLabel}</span>
                 </button>
               )}
 
@@ -355,7 +408,7 @@ export default function ProductQuickViewModal() {
               </button>
             </div>
 
-            {quickViewProduct.inStock !== false && (
+            {!isTotalOutOfStock && (
               <button
                 onClick={handleBuyNow}
                 className="w-full bg-[#701A23] hover:bg-[#521117] text-white py-3.5 px-4 rounded-xl text-sm font-bold flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transition-all cursor-pointer"
@@ -364,6 +417,7 @@ export default function ProductQuickViewModal() {
                 <span>Proceed to Pay (₹{(currentPrice * quantity).toLocaleString('en-IN')})</span>
               </button>
             )}
+
 
             {/* Micro Guarantees */}
             <div className="flex items-center justify-between text-[11px] text-gray-500 pt-2 px-1">

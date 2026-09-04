@@ -426,18 +426,18 @@ export default function AdminOrders({ onNavigateShipping }) {
 
       {/* Order Details Drawer / Modal */}
       {selectedOrder && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl relative animate-fadeIn border border-gray-100 max-h-[92vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-2.5 sm:p-4">
+          <div className="bg-white rounded-2xl sm:rounded-3xl max-w-lg w-full p-4 sm:p-8 shadow-2xl relative animate-fadeIn border border-gray-100 max-h-[94vh] overflow-y-auto overflow-x-hidden min-w-0 my-auto">
             <div className="flex items-center justify-between pb-4 border-b border-gray-100">
-              <div>
+              <div className="min-w-0 flex-1 pr-2">
                 <span className="text-[11px] font-mono text-gray-400">Order Summary</span>
-                <h3 className="font-serif font-bold text-xl text-gray-900">
+                <h3 className="font-serif font-bold text-lg sm:text-xl text-gray-900 truncate">
                   #{selectedOrder.id}
                 </h3>
               </div>
               <button
                 onClick={() => setSelectedOrder(null)}
-                className="p-1.5 text-gray-400 hover:text-gray-700 rounded-lg cursor-pointer"
+                className="p-1.5 text-gray-400 hover:text-gray-700 rounded-lg cursor-pointer shrink-0"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -631,25 +631,25 @@ export default function AdminOrders({ onNavigateShipping }) {
 
       {/* ── Quick DTDC Tracking & Dispatch Modal ───────────────────────── */}
       {isTrackingModalOpen && selectedOrder && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl relative animate-fadeIn border border-gray-100">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-2.5 sm:p-4">
+          <div className="bg-white rounded-2xl sm:rounded-3xl max-w-md w-full p-4 sm:p-7 shadow-2xl relative animate-fadeIn border border-gray-100 max-h-[94vh] overflow-y-auto overflow-x-hidden min-w-0 my-auto">
             <div className="flex items-center justify-between pb-4 border-b border-gray-100">
-              <div className="flex items-center gap-2">
-                <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center">
+              <div className="flex items-center gap-2 min-w-0 flex-1 pr-2">
+                <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center shrink-0">
                   <Truck className="w-5 h-5" />
                 </div>
-                <div>
-                  <h3 className="font-bold text-base text-gray-900">
+                <div className="min-w-0">
+                  <h3 className="font-bold text-sm sm:text-base text-gray-900 truncate">
                     Courier &amp; Tracking Details
                   </h3>
-                  <p className="text-[11px] text-gray-500 font-mono">
+                  <p className="text-[11px] text-gray-500 font-mono truncate">
                     Order #{selectedOrder.id} · {selectedOrder.customerName}
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setIsTrackingModalOpen(false)}
-                className="p-1.5 text-gray-400 hover:text-gray-700 rounded-lg cursor-pointer"
+                className="p-1.5 text-gray-400 hover:text-gray-700 rounded-lg cursor-pointer shrink-0"
               >
                 <X className="w-5 h-5" />
               </button>

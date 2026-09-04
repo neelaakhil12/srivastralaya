@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { getCategories, addCategory, updateCategory, deleteCategory } from '../services/supabase';
 import { uploadToCloudinary } from '../services/cloudinary';
+import { compressImage } from '../utils/compressImage';
 
 export default function AdminCategories({ isAddingNew, onCloseNewModal }) {
   const [categories, setCategories] = useState([]);
@@ -107,7 +108,8 @@ export default function AdminCategories({ isAddingNew, onCloseNewModal }) {
     setUploadingImage(true);
     setModalError('');
     try {
-      const cloudinaryUrl = await uploadToCloudinary(file, 'sri-vastralaya/categories');
+      const compressed = await compressImage(file, 1200, 1200, 0.82);
+      const cloudinaryUrl = await uploadToCloudinary(compressed || file, 'sri-vastralaya/categories');
       setFormData(prev => ({
         ...prev,
         image: cloudinaryUrl,
@@ -119,6 +121,7 @@ export default function AdminCategories({ isAddingNew, onCloseNewModal }) {
       setUploadingImage(false);
     }
   };
+
 
   const handleAddSubcategory = (e) => {
     e.preventDefault();
@@ -327,18 +330,18 @@ export default function AdminCategories({ isAddingNew, onCloseNewModal }) {
 
       {/* Add / Edit Category Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl relative animate-fadeIn border border-gray-100">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-2.5 sm:p-4">
+          <div className="bg-white rounded-2xl sm:rounded-3xl max-w-lg w-full p-4 sm:p-8 shadow-2xl relative animate-fadeIn border border-gray-100 max-h-[94vh] overflow-y-auto overflow-x-hidden min-w-0 my-auto">
             <div className="flex items-center justify-between pb-4 border-b border-gray-100">
-              <div>
-                <h3 className="font-serif font-bold text-lg text-gray-900">
+              <div className="min-w-0 flex-1 pr-2">
+                <h3 className="font-serif font-bold text-base sm:text-lg text-gray-900 truncate">
                   {editingCategory ? 'Edit Category' : 'Add New Category'}
                 </h3>
-                <p className="text-xs text-gray-500">Image will be securely stored in Cloudinary</p>
+                <p className="text-[11px] sm:text-xs text-gray-500 truncate">Image will be securely stored in Cloudinary</p>
               </div>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="p-1.5 text-gray-400 hover:text-gray-700 rounded-lg"
+                className="p-1.5 text-gray-400 hover:text-gray-700 rounded-lg cursor-pointer shrink-0"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -462,12 +465,12 @@ export default function AdminCategories({ isAddingNew, onCloseNewModal }) {
                     value={subcategoryInput}
                     onChange={(e) => setSubcategoryInput(e.target.value)}
                     placeholder="e.g. Silk Sarees, Cotton Sarees"
-                    className="flex-1 px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:bg-white focus:ring-2 focus:ring-[#701A23] focus:outline-none"
+                    className="flex-1 min-w-0 px-3.5 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:bg-white focus:ring-2 focus:ring-[#701A23] focus:outline-none"
                   />
                   <button
                     type="button"
                     onClick={handleAddSubcategory}
-                    className="px-3 py-2 bg-gray-800 hover:bg-black text-white font-bold rounded-xl text-xs"
+                    className="px-3 py-2 bg-gray-800 hover:bg-black text-white font-bold rounded-xl text-xs shrink-0 cursor-pointer"
                   >
                     Add
                   </button>

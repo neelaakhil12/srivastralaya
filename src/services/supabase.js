@@ -164,11 +164,14 @@ export async function getProducts() {
 
     if (error) {
       console.warn('Supabase fetch products warning:', error.message);
-      const cached = localStorage.getItem('sv_cached_products');
-      return cached ? JSON.parse(cached) : [];
+      try {
+        const cached = localStorage.getItem('sv_cached_products');
+        if (cached) return JSON.parse(cached);
+      } catch (e) {}
+      return defaultProducts;
     }
 
-    if (Array.isArray(data)) {
+    if (Array.isArray(data) && data.length > 0) {
       const list = data.map(item => ({
         id: item.id,
         name: item.name,
@@ -203,8 +206,11 @@ export async function getProducts() {
     console.warn('Database products error:', err);
   }
 
-  const cached = localStorage.getItem('sv_cached_products');
-  return cached ? JSON.parse(cached) : [];
+  try {
+    const cached = localStorage.getItem('sv_cached_products');
+    if (cached) return JSON.parse(cached);
+  } catch (e) {}
+  return defaultProducts;
 }
 
 export async function addProduct(product) {
@@ -246,11 +252,11 @@ export async function addProduct(product) {
       .from('products')
       .upsert([payload])
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) throw error;
     window.dispatchEvent(new Event('sv_products_updated'));
-    return data;
+    return data || payload;
   } catch (err) {
     if (err.message && (err.message.includes('is_best_seller') || err.message.includes('is_trending') || err.message.includes('sizes') || err.message.includes('size_prices') || err.message.includes('colors') || err.message.includes('specifications'))) {
       const fallbackPayload = { ...payload };
@@ -264,10 +270,10 @@ export async function addProduct(product) {
         .from('products')
         .upsert([fallbackPayload])
         .select()
-        .single();
+        .maybeSingle();
       if (error) throw error;
       window.dispatchEvent(new Event('sv_products_updated'));
-      return data;
+      return data || fallbackPayload;
     }
     console.error('Supabase add product error:', err);
     throw err;
@@ -275,6 +281,7 @@ export async function addProduct(product) {
 }
 
 export async function updateProduct(id, product) {
+  const targetId = id || product.id || `sv-${Date.now()}`;
   const specList = Array.isArray(product.specifications)
     ? product.specifications
     : (typeof product.specifications === 'string'
@@ -282,41 +289,41 @@ export async function updateProduct(id, product) {
       : []);
 
   const payload = {
+    id: targetId,
     name: product.name,
     category: product.category,
-    subcategory: product.subcategory,
-    price: Number(product.price),
+    subcategory: product.subcategory || '',
+    price: Number(product.price) || 0,
     old_price: product.oldPrice ? Number(product.oldPrice) : null,
-    discount: product.discount,
-    is_new: product.isNew,
-    is_featured: product.isFeatured,
-    is_best_seller: product.isBestSeller,
-    is_trending: product.isTrending,
+    discount: product.discount || '',
+    is_new: product.isNew ?? false,
+    is_featured: product.isFeatured ?? false,
+    is_best_seller: product.isBestSeller ?? false,
+    is_trending: product.isTrending ?? false,
     sizes: product.sizes && product.sizes.length ? product.sizes : null,
     size_prices: product.sizePrices || null,
     colors: Array.isArray(product.colors) && product.colors.length ? product.colors : null,
     specifications: specList,
-    rating: Number(product.rating),
-    reviews_count: Number(product.reviewsCount),
+    rating: Number(product.rating) || 4.8,
+    reviews_count: Number(product.reviewsCount) || 0,
     image: product.image,
     images: product.images && product.images.length ? product.images : [product.image],
-    description: product.description,
-    in_stock: product.inStock,
-    fabric: product.fabric,
-    length: product.length
+    description: product.description || '',
+    in_stock: product.inStock ?? true,
+    fabric: product.fabric || '',
+    length: product.length || ''
   };
 
   try {
     const { data, error } = await supabase
       .from('products')
-      .update(payload)
-      .eq('id', id)
+      .upsert([payload])
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) throw error;
     window.dispatchEvent(new Event('sv_products_updated'));
-    return data;
+    return data || payload;
   } catch (err) {
     if (err.message && (err.message.includes('is_best_seller') || err.message.includes('is_trending') || err.message.includes('sizes') || err.message.includes('size_prices') || err.message.includes('colors') || err.message.includes('specifications'))) {
       const fallbackPayload = { ...payload };
@@ -328,18 +335,18 @@ export async function updateProduct(id, product) {
       delete fallbackPayload.specifications;
       const { data, error } = await supabase
         .from('products')
-        .update(fallbackPayload)
-        .eq('id', id)
+        .upsert([fallbackPayload])
         .select()
-        .single();
+        .maybeSingle();
       if (error) throw error;
       window.dispatchEvent(new Event('sv_products_updated'));
-      return data;
+      return data || fallbackPayload;
     }
     console.error('Supabase update product error:', err);
     throw err;
   }
 }
+
 
 export async function deleteProduct(id) {
   try {

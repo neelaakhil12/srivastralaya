@@ -371,20 +371,20 @@ export default function AdminHeroSliders() {
 
       {/* ── Add / Edit Slide Modal ──────────────────────────────────────── */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl relative animate-fadeIn border border-gray-100">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-2.5 sm:p-4">
+          <div className="bg-white rounded-2xl sm:rounded-3xl max-w-lg w-full p-4 sm:p-8 shadow-2xl relative animate-fadeIn border border-gray-100 max-h-[94vh] overflow-y-auto overflow-x-hidden min-w-0 my-auto">
             <div className="flex items-center justify-between pb-4 border-b border-gray-100">
-              <div>
-                <h3 className="font-serif font-bold text-lg text-gray-900">
+              <div className="min-w-0 flex-1 pr-2">
+                <h3 className="font-serif font-bold text-base sm:text-lg text-gray-900 truncate">
                   {editingIndex !== null ? `Edit Slide #${editingIndex + 1}` : 'Add New Hero Banner Slide'}
                 </h3>
-                <p className="text-xs text-gray-500">
+                <p className="text-[11px] sm:text-xs text-gray-500 truncate">
                   Banner image will be displayed on the homepage slider
                 </p>
               </div>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="p-1.5 text-gray-400 hover:text-gray-700 rounded-lg cursor-pointer"
+                className="p-1.5 text-gray-400 hover:text-gray-700 rounded-lg cursor-pointer shrink-0"
               >
                 <X className="w-5 h-5" />
               </button>
